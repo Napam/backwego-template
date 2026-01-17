@@ -1,0 +1,52 @@
+version: 3
+
+tasks:
+  init:
+    cmds:
+      - task init.js
+
+  init.js:
+    dir: ./web
+    cmds:
+      - bun install
+
+  dev:
+    cmds:
+      - task dev.tailwind &
+      - task dev.sql &
+      - task db.migrate
+      - task dev.go
+
+  dev.tailwind:
+    dir: ./web
+    cmds:
+      - bunx tailwindcss -i tailwind.css -o static/tailwind.css --watch --cwd .
+
+  dev.sql:
+    dir: ./db
+    cmds:
+      - |
+        go tool wgo \
+          -debounce=256ms \
+          -file=.sql \
+          go tool sqlc generate
+
+  dev.go:
+    env:
+      TEMPL_DEV_MODE: true
+      # Avoids inlining and optimizations, useful for debugging
+      GOFLAGS: "-gcflags=-N -gcflags=-l"
+    cmds:
+      - |
+        go tool templ generate \
+        --log-level=info \
+        --watch \
+        --watch-pattern='(.+\.go$)|(.+\.templ$)|(.+_templ\.txt$)|(.+\.js$)|(.+\.css)' \
+        --path=. \
+        --proxy="http://localhost:8080" \
+        --open-browser=false \
+        --cmd='go run ./cmd/serve/main.go'
+
+  db.migrate:
+    cmds:
+      - go tool goose sqlite3 -dir ./db/migrations ./data/sqlite.db up

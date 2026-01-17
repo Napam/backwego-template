@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary-50: oklch(0.979 0.021 166.113);
+  --color-primary-100: oklch(0.95 0.052 163.051);
+  --color-primary-200: oklch(0.905 0.093 164.15);
+  --color-primary-300: oklch(0.845 0.143 164.978);
+  --color-primary-400: oklch(0.765 0.177 163.223);
+  --color-primary-500: oklch(0.696 0.17 162.48);
+  --color-primary-600: oklch(0.596 0.145 163.225);
+  --color-primary-700: oklch(0.508 0.118 165.612);
+  --color-primary-800: oklch(0.432 0.095 166.913);
+  --color-primary-900: oklch(0.378 0.077 168.94);
+  --color-primary-950: oklch(0.262 0.051 172.552);
+
+  --color-secondary-50: oklch(0.987 0.022 95.277);
+  --color-secondary-100: oklch(0.962 0.059 95.617);
+  --color-secondary-200: oklch(0.924 0.12 95.746);
+  --color-secondary-300: oklch(0.879 0.169 91.605);
+  --color-secondary-400: oklch(0.828 0.189 84.429);
+  --color-secondary-500: oklch(0.769 0.188 70.08);
+  --color-secondary-600: oklch(0.666 0.179 58.318);
+  --color-secondary-700: oklch(0.555 0.163 48.998);
+  --color-secondary-800: oklch(0.473 0.137 46.201);
+  --color-secondary-900: oklch(0.414 0.112 45.904);
+  --color-secondary-950: oklch(0.279 0.077 45.635);
+
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  --animate-fade-in: fade-in 256ms ease-in-out;
+}
