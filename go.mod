@@ -12,6 +12,7 @@ tool (
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/go-chi/chi/v5 v5.3.0
+	github.com/pressly/goose/v3 v3.27.2
 	modernc.org/sqlite v1.53.0
 )
 
@@ -71,7 +72,6 @@ require (
 	github.com/pingcap/failpoint v0.0.0-20260521055755-e7642935314f // indirect
 	github.com/pingcap/log v1.1.0 // indirect
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20260703145254-b2c55fb2b13d // indirect
-	github.com/pressly/goose/v3 v3.27.2 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/riza-io/grpc-go v0.2.0 // indirect

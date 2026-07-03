@@ -20,6 +20,7 @@ tasks:
     dir: ./web
     cmds:
       - bun update --latest
+      - bun install
 
   db.migrate:
     cmds:
@@ -37,6 +38,7 @@ tasks:
     cmds:
       - task init
       - task dev.tailwind &
+      - task dev.web &
       - task dev.sql &
       - task dev.go
 
@@ -44,6 +46,19 @@ tasks:
     dir: ./web
     cmds:
       - bunx tailwindcss -i tailwind.css -o static/tailwind.css --watch --minify --cwd .
+
+  dev.web:
+    dir: ./web
+    cmds:
+      - |
+        go tool wgo \
+        -debounce=256ms \
+        -xdir=node_modules \
+        -xdir=tmp \
+        -xdir=static \
+        -file='\.ts$' \
+        -file='\.css$' \
+        bun run build.ts :: go tool templ generate --notify-proxy
 
   dev.sql:
     dir: ./db
@@ -87,7 +102,7 @@ tasks:
     cmds:
       - task init.js
       - rm -rf web/static/*
-      - task gen.templ & task build.tailwind & wait
+      - task gen.templ & task build.tailwind & task build.web & wait
       # -s -w strips symbols and debuginfo, -trimpath removes module relative paths
       - go build -ldflags="-s -w" -trimpath -o ./bin/app ./cmd/serve
 
@@ -95,3 +110,8 @@ tasks:
     dir: web
     cmds:
       - bunx tailwindcss -i tailwind.css -o static/tailwind.css --minify --cwd .
+
+  build.web:
+    dir: web
+    cmds:
+      - ENV=prod bun run build.ts

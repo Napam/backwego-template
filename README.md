@@ -12,6 +12,7 @@ Tech stack:
 
 - [templ](https://templ.guide) - HTML templating
 - [tailwindcss](https://tailwindcss.com/) - CSS styling
+- [Lit](https://lit.dev/) - web components
 - [go-chi](https://github.com/go-chi/chi) - HTTP router
 - [goose](https://github.com/pressly/goose) - database migrations
 - [sqlc](https://sqlc.dev/) - type-safe database queries
@@ -21,6 +22,8 @@ Features:
 
 - Embedded web assets in the binary (place files in `web/static`)
 - Hash-based asset caching for cache busting
+- Dark/light mode toggle via web components
+- Web component library with shadow DOM + shared Tailwind CSS
 
 See `Taskfile.yml` for available commands.
 

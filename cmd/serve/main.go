@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	_ "modernc.org/sqlite"
@@ -47,19 +48,38 @@ func main() {
 	}
 
 	queries := sqlc.New(dbConn)
-	users, err := queries.GetAllUsers(context.Background())
-	if err != nil {
-		panic(err)
-	}
-	logger.Info("Fetched users from database", slog.Any("users", len(users)))
 
 	backwegotemplate.SetupStatic(router)
 
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		err := root.RootPage(users).Render(context.Background(), w)
-		if err != nil {
-			logger.Error("Root page render failed", slog.Any("error", err))
-		}
+		users, _ := queries.GetAllUsers(r.Context())
+		editID, _ := strconv.ParseInt(r.URL.Query().Get("edit"), 10, 64)
+		_ = root.RootPage(users, editID).Render(r.Context(), w)
+	})
+
+	router.Post("/users", func(w http.ResponseWriter, r *http.Request) {
+		name := r.FormValue("name")
+		user, _ := queries.CreateUser(r.Context(), sql.NullString{String: name, Valid: name != ""})
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		logger.Info("Created user", slog.Int64("id", user.ID), slog.String("name", user.Name.String))
+	})
+
+	router.Post("/users/{id}/update", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+		name := r.FormValue("name")
+		_, _ = queries.UpdateUserName(r.Context(), sqlc.UpdateUserNameParams{
+			ID:   id,
+			Name: sql.NullString{String: name, Valid: name != ""},
+		})
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		logger.Info("Updated user", slog.Int64("id", id))
+	})
+
+	router.Post("/users/{id}/delete", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+		_ = queries.DeleteUser(r.Context(), id)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		logger.Info("Deleted user", slog.Int64("id", id))
 	})
 
 	logger.Info("Server running", slog.String("address", "localhost:8080"))

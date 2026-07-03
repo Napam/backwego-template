@@ -3,42 +3,123 @@ package root
 import (
 	"backwegotemplate"
 	"backwegotemplate/lib/generated/sqlc"
+	"strconv"
 )
 
-templ RootPage(users []sqlc.User) {
-	{{ linkStyle := "text-primary-400" }}
-	<html>
+templ RootPage(users []sqlc.User, editID int64) {
+	{{ techAnchorClass := "font-bold dark:font-medium hover:underline text-primary-500 dark:text-primary-400" }}
+	{{ techUndertextClass := "text-gray-500 dark:text-neutral-500" }}
+	<html class="dark">
 		<head>
 			<title>Backwego Template</title>
 			<link rel="stylesheet" id="tailwindcss" href={ backwegotemplate.StaticRootPath("static/tailwind.css") }/>
+			<script src={ backwegotemplate.StaticRootPath("static/bundle.js") }></script>
 		</head>
-		<body class="flex justify-center items-center bg-neutral-900">
-			<main class="p-8 max-w-4xl text-neutral-300 animate-fade-in">
-				<h1 class="mb-12 text-4xl font-extrabold">Backwego Template</h1>
-				<p class="mb-4">This is a starter template for building fullstack SSR-first web applications using</p>
-				<ul class="ml-4 list-disc list-outside">
-					<li>
-						<a class={ linkStyle } href="https://go.dev">Go</a> - for the backend language:
-						<ul class="ml-12 list-disc list-outside">
-							<li><a class={ linkStyle } href="https://gitlab.com/cznic/sqlite">A pure Go SQLite database driver</a> (easily swapped with something else)</li>
-							<li><a class={ linkStyle } href="https://github.com/go-chi/chi">go-chi</a> - for the HTTP router </li>
-							<li><a class={ linkStyle } href="https://github.com/pressly/goose">goose</a> - for database migrations</li>
-							<li><a class={ linkStyle } href="https://sqlc.dev/">sqlc</a> - for generating database models and queries based on the migrations (needs to be reconfigured if you change db type!)</li>
-						</ul>
-					</li>
-					<li><a class={ linkStyle } href="https://templ.guide">Templ</a> - for writing HTML templating</li>
-					<li><a class={ linkStyle } href="https://tailwindcss.com/">TailwindCSS</a> - { "for" } CSS styling</li>
-					<li><a class={ linkStyle } href="https://bun.com/">Bun</a> - { "for" } web asset building and bundling</li>
-					<li>Embedded web assets in the binary by placing things in web/static</li>
-					<li>Aggressive web asset caching by appending hashes of web assets into their names</li>
-				</ul>
-				<h2 class="mt-12 mb-4 text-lg font-bold">Users from the database:</h2>
-				for _, user := range users {
-					<div class="p-4 mb-2 rounded border border-primary-400">
-						<p><span class="font-bold">ID:</span> { user.ID }</p>
-						<p><span class="font-bold">Name:</span> { user.Name.String }</p>
+		<body class="min-h-screen text-gray-700 bg-gray-50 dark:bg-neutral-900 dark:text-neutral-300">
+			<header class="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+				<div class="flex justify-between items-center py-4 px-6 mx-auto max-w-3xl">
+					<h1 class="text-lg font-bold tracking-tight text-gray-900 dark:text-white">Backwego Template</h1>
+					<theme-button></theme-button>
+				</div>
+			</header>
+			<main class="py-10 px-6 mx-auto max-w-3xl">
+				<section class="mb-12">
+					<p class="mb-6 leading-relaxed text-gray-600 dark:text-neutral-400">
+						A starter template for building fullstack SSR-first web applications
+					</p>
+					<dl class="grid grid-cols-2 gap-x-4 gap-y-6 text-sm text-gray-600 dark:text-neutral-400">
+						<div>
+							<dt class="mb-1"><a class={ techAnchorClass } href="https://go.dev">Go</a> - backend language</dt>
+							<dd class={ techUndertextClass }>
+								<a class="hover:underline" href="https://gitlab.com/cznic/sqlite">modernc.org/sqlite</a> - pure Go SQLite driver
+								<br/>
+								<a class="hover:underline" href="https://github.com/go-chi/chi">go-chi</a> - HTTP router
+								<br/>
+								<a class="hover:underline" href="https://github.com/pressly/goose">goose</a> - database migrations
+								<br/>
+								<a class="hover:underline" href="https://sqlc.dev/">sqlc</a> - type-safe SQL query codegen
+							</dd>
+						</div>
+						<div>
+							<dt class="mb-1"><a class={ techAnchorClass } href="https://templ.guide">Templ</a> - HTML templating</dt>
+							<dd class={ techUndertextClass }>Type-safe HTML - catches missing variables and bad nesting at compile time</dd>
+						</div>
+						<div>
+							<dt class="mb-1"><a class={ techAnchorClass } href="https://tailwindcss.com/">TailwindCSS</a> - CSS utility classes</dt>
+							<dd class={ techUndertextClass }>No custom CSS files - responsive, dark mode, and design system out of the box</dd>
+						</div>
+						<div>
+							<dt class="mb-1"><a class={ techAnchorClass } href="https://bun.com/">Bun</a> - web asset bundling</dt>
+							<dd class={ techUndertextClass }>Fast all-in-one JS runtime - replaces webpack, rollup, and esbuild</dd>
+						</div>
+						<div>
+							<dt class="mb-1"><a class={ techAnchorClass } href="https://lit.dev/">Lit</a> - web components</dt>
+							<dd class={ techUndertextClass }>Custom <code class="text-xs">StyledLitElement</code> base class enables shadow DOM components to share your Tailwind stylesheet</dd>
+						</div>
+					</dl>
+				</section>
+				<!-- Example CRUD -->
+				<section class="flex flex-col gap-4 p-4 bg-white border border-gray-200 rounded-xs dark:bg-neutral-800 dark:border-neutral-700">
+					<div class="flex justify-between items-baseline">
+						<h2 class="text-sm text-gray-500 dark:text-neutral-400">Example CRUD - User registry</h2>
 					</div>
-				}
+					<p class="text-xs text-gray-400 dark:text-neutral-500">
+						Uses <code class="py-0.5 px-1 bg-gray-100 rounded dark:bg-neutral-900">&lt;input-component&gt;</code> and
+						<code class="py-0.5 px-1 bg-gray-100 rounded dark:bg-neutral-900">&lt;button-component&gt;</code> inside native HTML forms.
+						Each form POSTs and the server redirects back.
+					</p>
+					<form method="post" action="/users" class="flex gap-2 items-end">
+						<input-component
+							name="name"
+							placeholder="New user name"
+							class="grow"
+							inputClass="py-0 px-2 text-sm bg-gray-100 border-none rounded-xs dark:bg-neutral-700"
+						></input-component>
+						<button-component type="submit" purpose="primary" buttonClass="py-0 px-4 text-sm font-normal">Add +</button-component>
+					</form>
+					<table class="w-full text-sm">
+						<thead class="border-b border-gray-200 dark:border-neutral-700">
+							<tr class="text-gray-500 dark:text-neutral-500">
+								<th class="py-1 pr-4 font-normal text-left">ID</th>
+								<th class="py-1 font-normal text-left">Name</th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody class="font-light text-gray-500 dark:text-neutral-400">
+							for _, user := range users {
+								{{ idStr := strconv.FormatInt(user.ID, 10) }}
+								{{ isEditing := editID == user.ID }}
+								<tr>
+									<td class="pt-2">{ idStr }</td>
+									if isEditing {
+										<td class="pt-2">
+											<form id={ "edit-" + idStr } method="post" action={ "/users/" + idStr + "/update" } class="flex gap-2 items-center">
+												<input name="name" value={ user.Name.String } class="w-full text-sm text-gray-700 bg-transparent border-b border-gray-300 outline-none dark:border-neutral-500 dark:text-neutral-300"/>
+											</form>
+										</td>
+									} else {
+										<td class="pt-2">{ user.Name.String }</td>
+									}
+									<td class="flex gap-2 justify-end pt-2">
+										if isEditing {
+											<button type="submit" form={ "edit-" + idStr } class="text-xs cursor-pointer text-primary-500 dark:text-primary-400">Save</button>
+											<a href="/" class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 dark:hover:text-neutral-300 dark:text-neutral-500">Cancel</a>
+										} else {
+											<a href={ "/?edit=" + idStr } class="cursor-pointer">
+												<edit-icon svgClass="text-gray-400 size-4 dark:text-neutral-500 dark:hover:text-primary-500 hover:text-primary-500"></edit-icon>
+											</a>
+											<form method="post" action={ "/users/" + idStr + "/delete" }>
+												<button type="submit" class="cursor-pointer">
+													<trash-icon svgClass="text-gray-400 hover:text-red-600 size-4 dark:text-neutral-500 dark:hover:text-red-600"></trash-icon>
+												</button>
+											</form>
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</section>
 			</main>
 		</body>
 	</html>
