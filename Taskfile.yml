@@ -68,7 +68,7 @@ tasks:
         --path=. \
         --proxy="http://localhost:8080" \
         --open-browser=false \
-        --cmd='go run ./cmd/serve/main.go'
+        --cmd='go run -tags=devlocal ./cmd/serve/main.go'
 
   build.docker.run:
     cmds:

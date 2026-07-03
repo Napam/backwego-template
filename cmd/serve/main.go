@@ -4,7 +4,6 @@ import (
 	"backwegotemplate"
 	"backwegotemplate/db"
 	"backwegotemplate/lib/generated/sqlc"
-	"backwegotemplate/lib/hashfs"
 	"backwegotemplate/lib/logging"
 	"backwegotemplate/web/root"
 	"context"
@@ -54,7 +53,7 @@ func main() {
 	}
 	logger.Info("Fetched users from database", slog.Any("users", len(users)))
 
-	router.Handle("/static/*", hashfs.FileServer(backwegotemplate.HashFS))
+	backwegotemplate.SetupStatic(router)
 
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		err := root.RootPage(users).Render(context.Background(), w)

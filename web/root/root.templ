@@ -6,11 +6,11 @@ import (
 )
 
 templ RootPage(users []sqlc.User) {
-	{{ linkStyle := "text-blue-400" }}
+	{{ linkStyle := "text-primary-400" }}
 	<html>
 		<head>
 			<title>Backwego Template</title>
-			<link rel="stylesheet" id="tailwindcss" href={ backwegotemplate.HashFS.HashName("static/tailwind.css") }/>
+			<link rel="stylesheet" id="tailwindcss" href={ backwegotemplate.StaticRootPath("static/tailwind.css") }/>
 		</head>
 		<body class="flex justify-center items-center bg-neutral-900">
 			<main class="p-8 max-w-4xl text-neutral-300 animate-fade-in">
@@ -23,7 +23,7 @@ templ RootPage(users []sqlc.User) {
 							<li><a class={ linkStyle } href="https://gitlab.com/cznic/sqlite">A pure Go SQLite database driver</a> (easily swapped with something else)</li>
 							<li><a class={ linkStyle } href="https://github.com/go-chi/chi">go-chi</a> - for the HTTP router </li>
 							<li><a class={ linkStyle } href="https://github.com/pressly/goose">goose</a> - for database migrations</li>
-							<li><a class={ linkStyle } href="https://sqlc.dev/">sqlc</a> - for generating database models and queries based on the migrations (needs to be reconfigured if you cahnge db type!)</li>
+							<li><a class={ linkStyle } href="https://sqlc.dev/">sqlc</a> - for generating database models and queries based on the migrations (needs to be reconfigured if you change db type!)</li>
 						</ul>
 					</li>
 					<li><a class={ linkStyle } href="https://templ.guide">Templ</a> - for writing HTML templating</li>
@@ -32,9 +32,9 @@ templ RootPage(users []sqlc.User) {
 					<li>Embedded web assets in the binary by placing things in web/static</li>
 					<li>Aggressive web asset caching by appending hashes of web assets into their names</li>
 				</ul>
-				<h2 class="mt-8 mb-4 text-lg font-bold">Users from the database:</h2>
+				<h2 class="mt-12 mb-4 text-lg font-bold">Users from the database:</h2>
 				for _, user := range users {
-					<div class="p-4 mb-2 rounded border border-neutral-700">
+					<div class="p-4 mb-2 rounded border border-primary-400">
 						<p><span class="font-bold">ID:</span> { user.ID }</p>
 						<p><span class="font-bold">Name:</span> { user.Name.String }</p>
 					</div>
