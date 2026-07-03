@@ -10,17 +10,40 @@ tasks:
     cmds:
       - bun install
 
+  update.go:
+    cmds:
+      - go get -u tool # updates every module in the go.mod tool() directive
+      - go get -u ./...
+      - go mod tidy
+
+  update.web:
+    dir: ./web
+    cmds:
+      - bun update --latest
+
+  db.migrate:
+    cmds:
+      - go tool goose sqlite3 -dir ./db/migrations ./data/sqlite.db up
+
+  gen.templ:
+    cmds:
+      - go tool templ generate
+
+  gen.db:
+    cmds:
+      - go tool sqlc generate
+
   dev:
     cmds:
+      - task init
       - task dev.tailwind &
       - task dev.sql &
-      - task db.migrate
       - task dev.go
 
   dev.tailwind:
     dir: ./web
     cmds:
-      - bunx tailwindcss -i tailwind.css -o static/tailwind.css --watch --cwd .
+      - bunx tailwindcss -i tailwind.css -o static/tailwind.css --watch --minify --cwd .
 
   dev.sql:
     dir: ./db
@@ -41,12 +64,34 @@ tasks:
         go tool templ generate \
         --log-level=info \
         --watch \
-        --watch-pattern='(.+\.go$)|(.+\.templ$)|(.+_templ\.txt$)|(.+\.js$)|(.+\.css)' \
+        --watch-pattern='(.+\.go$)|(.+\.templ$)' \
         --path=. \
         --proxy="http://localhost:8080" \
         --open-browser=false \
         --cmd='go run ./cmd/serve/main.go'
 
-  db.migrate:
+  build.docker.run:
     cmds:
-      - go tool goose sqlite3 -dir ./db/migrations ./data/sqlite.db up
+      - task build.docker
+      - |
+        docker run --rm \
+        -v $(pwd)/data:/app/data \
+        -p 8080:8080 \
+        backwegotemplate:latest
+
+  build.docker:
+    cmds:
+      - docker build -t backwegotemplate:latest .
+
+  build.go:
+    cmds:
+      - task init.js
+      - rm -rf web/static/*
+      - task gen.templ & task build.tailwind & wait
+      # -s -w strips symbols and debuginfo, -trimpath removes module relative paths
+      - go build -ldflags="-s -w" -trimpath -o ./bin/app ./cmd/serve
+
+  build.tailwind:
+    dir: web
+    cmds:
+      - bunx tailwindcss -i tailwind.css -o static/tailwind.css --minify --cwd .

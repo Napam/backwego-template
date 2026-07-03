@@ -15,6 +15,11 @@ import (
 	"sync"
 )
 
+// HashLength is the number of hex characters to use for the hash suffix.
+// SHA-256 produces 64 hex chars, but we truncate for shorter filenames.
+// 16 chars (8 bytes) should provide sufficient collision resistance for typical use.
+const HashLength = 16
+
 // Ensure file system implements interface.
 var _ fs.FS = (*FS)(nil)
 
@@ -75,7 +80,7 @@ func (fsys *FS) HashName(name string) string {
 
 	// Compute hash and build filename.
 	hash := sha256.Sum256(buf)
-	hashhex := hex.EncodeToString(hash[:])
+	hashhex := hex.EncodeToString(hash[:HashLength/2]) // 2 hex chars per byte
 	hashname := FormatName(name, hashhex)
 
 	// Store in lookups.
@@ -137,10 +142,12 @@ func ParseName(filename string) (base, hash string) {
 		return filename, ""
 	}
 
-	return path.Join(dir, pre[:len(pre)-65]+ext), pre[len(pre)-64:]
+	// Extract hash from end: hash length + 1 for the dash separator
+	hashWithDash := HashLength + 1
+	return path.Join(dir, pre[:len(pre)-hashWithDash]+ext), pre[len(pre)-HashLength:]
 }
 
-var hashSuffixRegex = regexp.MustCompile(`-[0-9a-f]{64}`)
+var hashSuffixRegex = regexp.MustCompile(`-[0-9a-f]{` + strconv.Itoa(HashLength) + `}`)
 
 // FileServer returns an http.Handler for serving FS files. It provides a
 // simplified implementation of http.FileServer which is used to aggressively
@@ -201,7 +208,7 @@ func (h *fsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Flush header and write content.
 	switch f := f.(type) {
 	case io.ReadSeeker:
-		http.ServeContent(w, r, filename, fi.ModTime(), f.(io.ReadSeeker))
+		http.ServeContent(w, r, filename, fi.ModTime(), f)
 	default:
 		// Set content length.
 		w.Header().Set("Content-Length", strconv.FormatInt(fi.Size(), 10))

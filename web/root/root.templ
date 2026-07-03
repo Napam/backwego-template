@@ -12,9 +12,9 @@ templ RootPage(users []sqlc.User) {
 			<title>Backwego Template</title>
 			<link rel="stylesheet" id="tailwindcss" href={ backwegotemplate.HashFS.HashName("static/tailwind.css") }/>
 		</head>
-		<body class="flex justify-center items-center bg-neutral-800">
-			<main class="p-8 max-w-2xl border-2 border-primary-600 animate-fade-in bg-neutral-900 text-neutral-300">
-				<h1 class="mb-8 text-xl font-extrabold">Backwego Template</h1>
+		<body class="flex justify-center items-center bg-neutral-900">
+			<main class="p-8 max-w-4xl text-neutral-300 animate-fade-in">
+				<h1 class="mb-12 text-4xl font-extrabold">Backwego Template</h1>
 				<p class="mb-4">This is a starter template for building fullstack SSR-first web applications using</p>
 				<ul class="ml-4 list-disc list-outside">
 					<li>
@@ -23,11 +23,12 @@ templ RootPage(users []sqlc.User) {
 							<li><a class={ linkStyle } href="https://gitlab.com/cznic/sqlite">A pure Go SQLite database driver</a> (easily swapped with something else)</li>
 							<li><a class={ linkStyle } href="https://github.com/go-chi/chi">go-chi</a> - for the HTTP router </li>
 							<li><a class={ linkStyle } href="https://github.com/pressly/goose">goose</a> - for database migrations</li>
-							<li><a class={ linkStyle } href="https://sqlc.dev/">sqlc</a> - for generating database models and queries based on the migrations (needs to be reconfigured i db type changes!)</li>
+							<li><a class={ linkStyle } href="https://sqlc.dev/">sqlc</a> - for generating database models and queries based on the migrations (needs to be reconfigured if you cahnge db type!)</li>
 						</ul>
 					</li>
 					<li><a class={ linkStyle } href="https://templ.guide">Templ</a> - for writing HTML templating</li>
-					<li><a class={ linkStyle } href="https://tailwindcss.com/">TailwindCSS</a> { "for" } CSS styling</li>
+					<li><a class={ linkStyle } href="https://tailwindcss.com/">TailwindCSS</a> - { "for" } CSS styling</li>
+					<li><a class={ linkStyle } href="https://bun.com/">Bun</a> - { "for" } web asset building and bundling</li>
 					<li>Embedded web assets in the binary by placing things in web/static</li>
 					<li>Aggressive web asset caching by appending hashes of web assets into their names</li>
 				</ul>
