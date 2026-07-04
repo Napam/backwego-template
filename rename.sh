@@ -111,10 +111,8 @@ done <<< "$FILES"
 # Regenerate templ + web bundle so build artifacts match the new name.
 echo ""
 echo "Regenerating build artifacts..."
-( cd web && command -v bun > /dev/null 2>&1 && bun run build.ts) \
-                                                                 || echo "  (skipped web bundle: bun not available)"
-( go tool templ generate > /dev/null 2>&1) \
-                                           || echo "  (skipped templ regen: templ tool unavailable)"
+( cd web && command -v bun > /dev/null 2>&1 && bun run build.ts) || echo "  (skipped web bundle: bun not available)"
+( go tool templ generate > /dev/null 2>&1) || echo "  (skipped templ regen: templ tool unavailable)"
 
 echo ""
 echo "Done! Verify with: go build ./cmd/serve"
