@@ -115,3 +115,28 @@ tasks:
     dir: web
     cmds:
       - ENV=prod bun run build.ts
+
+  check:
+    desc: Run all checks (formatting, linting, compile)
+    cmds:
+      - task: check.templ
+      - task: check.go
+      - task: check.web
+
+  check.go:
+    desc: Go vet and compile check
+    cmds:
+      - go vet ./...
+      - go build ./...
+
+  check.templ:
+    desc: Templ generate check (ensures .templ files compile)
+    cmds:
+      - go tool templ generate
+      - go vet ./...
+
+  check.web:
+    desc: TypeScript type check
+    dir: ./web
+    cmds:
+      - bunx tsc --noEmit
