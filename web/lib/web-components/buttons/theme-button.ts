@@ -48,7 +48,9 @@ export class ThemeButton extends LightLitElement {
         title=${label}
         @click=${this.handleClick}
       >
-        ${this.theme === "light" ? html`<sun-icon svgClass="size-4.5"></sun-icon>` : html`<moon-icon svgClass="size-4.5"></moon-icon>`}
+        ${this.theme === "light"
+          ? html`<sun-icon svgClass="size-4.5"></sun-icon>`
+          : html`<moon-icon svgClass="size-4.5"></moon-icon>`}
       </button>
     `;
   }
