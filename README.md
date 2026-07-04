@@ -32,3 +32,15 @@ See `Taskfile.yml` for available commands.
 1. Clone the repo
 2. In repo root run `task dev`
 3. Site with hot reload is at `localhost:7331`
+
+# Renaming
+
+Run the interactive rename wizard:
+
+```
+./rename.sh
+```
+
+This replaces `backwegotemplate` → your name, `Backwego Template` → your display name, `backwego-template` → your kebab-case name across all source files.
+
+**Note:** This is a one-way operation. To undo, use `git checkout .`.
