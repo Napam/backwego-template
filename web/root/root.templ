@@ -58,69 +58,72 @@ templ RootPage(users []sqlc.User, editID int64) {
 						</div>
 					</dl>
 				</section>
-				<!-- Example CRUD -->
-				<section class="flex flex-col gap-4 p-4 bg-white border border-gray-200 rounded-xs dark:bg-neutral-800 dark:border-neutral-700">
-					<div class="flex justify-between items-baseline">
-						<h2 class="text-sm text-gray-500 dark:text-neutral-400">Example CRUD - User registry</h2>
-					</div>
-					<p class="text-xs text-gray-400 dark:text-neutral-500">
-						Uses <code class="py-0.5 px-1 bg-gray-100 rounded dark:bg-neutral-900">&lt;input-component&gt;</code> and
-						<code class="py-0.5 px-1 bg-gray-100 rounded dark:bg-neutral-900">&lt;button-component&gt;</code> inside native HTML forms.
-						Each form POSTs and the server redirects back.
-					</p>
-					<form method="post" action="/users" class="flex gap-2 items-end">
-						<input-component
-							name="name"
-							placeholder="New user name"
-							class="grow"
-							inputClass="py-0 px-2 text-sm bg-gray-100 border-none rounded-xs dark:bg-neutral-700"
-						></input-component>
-						<button-component type="submit" purpose="primary" buttonClass="py-0 px-4 text-sm font-normal">Add +</button-component>
-					</form>
-					<table class="w-full text-sm">
-						<thead class="border-b border-gray-200 dark:border-neutral-700">
-							<tr class="text-gray-500 dark:text-neutral-500">
-								<th class="py-1 pr-4 font-normal text-left">ID</th>
-								<th class="py-1 font-normal text-left">Name</th>
-								<th></th>
-							</tr>
-						</thead>
-						<tbody class="font-light text-gray-500 dark:text-neutral-400">
-							for _, user := range users {
-								{{ idStr := strconv.FormatInt(user.ID, 10) }}
-								{{ isEditing := editID == user.ID }}
-								<tr>
-									<td class="pt-2">{ idStr }</td>
-									if isEditing {
-										<td class="pt-2">
-											<form id={ "edit-" + idStr } method="post" action={ "/users/" + idStr + "/update" } class="flex gap-2 items-center">
-												<input name="name" value={ user.Name.String } class="w-full text-sm text-gray-700 bg-transparent border-b border-gray-300 outline-none dark:border-neutral-500 dark:text-neutral-300"/>
-											</form>
-										</td>
-									} else {
-										<td class="pt-2">{ user.Name.String }</td>
-									}
-									<td class="flex gap-2 justify-end pt-2">
-										if isEditing {
-											<button type="submit" form={ "edit-" + idStr } class="text-xs cursor-pointer text-primary-500 dark:text-primary-400">Save</button>
-											<a href="/" class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 dark:hover:text-neutral-300 dark:text-neutral-500">Cancel</a>
-										} else {
-											<a href={ "/?edit=" + idStr } class="cursor-pointer">
-												<edit-icon svgClass="text-gray-400 size-4 dark:text-neutral-500 dark:hover:text-primary-500 hover:text-primary-500"></edit-icon>
-											</a>
-											<form method="post" action={ "/users/" + idStr + "/delete" }>
-												<button type="submit" class="cursor-pointer">
-													<trash-icon svgClass="text-gray-400 hover:text-red-600 size-4 dark:text-neutral-500 dark:hover:text-red-600"></trash-icon>
-												</button>
-											</form>
-										}
-									</td>
-								</tr>
-							}
-						</tbody>
-					</table>
-				</section>
+				@ExampleCRUDPart(users, editID)
 			</main>
 		</body>
 	</html>
+}
+
+templ ExampleCRUDPart(users []sqlc.User, editID int64) {
+	<section class="flex flex-col gap-4 p-4 bg-white border border-gray-200 rounded-xs dark:bg-neutral-800 dark:border-neutral-700">
+		<div class="flex justify-between items-baseline">
+			<h2 class="text-sm text-gray-500 dark:text-neutral-400">Example CRUD - User registry</h2>
+		</div>
+		<p class="text-xs text-gray-400 dark:text-neutral-500">
+			Uses <code class="py-0.5 px-1 bg-gray-100 rounded dark:bg-neutral-900">&lt;input-component&gt;</code> and
+			<code class="py-0.5 px-1 bg-gray-100 rounded dark:bg-neutral-900">&lt;button-component&gt;</code> inside native HTML forms.
+			Each form POSTs and the server redirects back.
+		</p>
+		<form method="post" action="/users" class="flex gap-2 items-end">
+			<input-component
+				name="name"
+				placeholder="New user name"
+				class="grow"
+				inputClass="py-0 px-2 text-sm bg-gray-100 border-none rounded-xs dark:bg-neutral-700"
+			></input-component>
+			<button-component type="submit" purpose="primary" buttonClass="py-0 px-4 text-sm font-normal">Add +</button-component>
+		</form>
+		<table class="w-full text-sm">
+			<thead class="border-b border-gray-200 dark:border-neutral-700">
+				<tr class="text-gray-500 dark:text-neutral-500">
+					<th class="py-1 pr-4 font-normal text-left">ID</th>
+					<th class="py-1 font-normal text-left">Name</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody class="font-light text-gray-500 dark:text-neutral-400">
+				for _, user := range users {
+					{{ idStr := strconv.FormatInt(user.ID, 10) }}
+					{{ isEditing := editID == user.ID }}
+					<tr>
+						<td class="pt-2">{ idStr }</td>
+						if isEditing {
+							<td class="pt-2">
+								<form id={ "edit-" + idStr } method="post" action={ "/users/" + idStr + "/update" } class="flex gap-2 items-center">
+									<input name="name" value={ user.Name.String } class="w-full text-sm text-gray-700 bg-transparent border-b border-gray-300 outline-none dark:border-neutral-500 dark:text-neutral-300"/>
+								</form>
+							</td>
+						} else {
+							<td class="pt-2">{ user.Name.String }</td>
+						}
+						<td class="flex gap-2 justify-end pt-2">
+							if isEditing {
+								<button type="submit" form={ "edit-" + idStr } class="text-xs cursor-pointer text-primary-500 dark:text-primary-400">Save</button>
+								<a href="/" class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 dark:hover:text-neutral-300 dark:text-neutral-500">Cancel</a>
+							} else {
+								<a href={ "/?edit=" + idStr } class="cursor-pointer">
+									<edit-icon svgClass="text-gray-400 size-4 dark:text-neutral-500 dark:hover:text-primary-500 hover:text-primary-500"></edit-icon>
+								</a>
+								<form method="post" action={ "/users/" + idStr + "/delete" }>
+									<button type="submit" class="cursor-pointer">
+										<trash-icon svgClass="text-gray-400 hover:text-red-600 size-4 dark:text-neutral-500 dark:hover:text-red-600"></trash-icon>
+									</button>
+								</form>
+							}
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</section>
 }
