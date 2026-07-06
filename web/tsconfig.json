@@ -7,28 +7,14 @@
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "downlevelIteration": true,
+    "lib": ["dom", "dom.iterable", "esnext"],
     "strict": true,
     "ignoreDeprecations": "6.0",
-    "baseUrl": "./",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@web-components/*": [
-        "./lib/web-components/*"
-      ],
-      "@lib/*": [
-        "./lib/*"
-      ],
-      "@utils/*": [
-        "./lib/utils/*"
-      ]
+      "@/*": ["./*"],
+      "@web-components/*": ["./lib/web-components/*"],
+      "@lib/*": ["./lib/*"],
+      "@utils/*": ["./lib/utils/*"]
     }
   },
   "exclude": ["tmp", "static", "node_modules"]

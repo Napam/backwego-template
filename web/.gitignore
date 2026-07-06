@@ -1,6 +1,10 @@
 *_templ.go
 tmp
 
+# This is mostly to make prettier ignore properly
+static/*
+!static/.gitignore
+
 # dependencies (bun install)
 node_modules
 

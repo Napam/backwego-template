@@ -8,9 +8,22 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@eslint/css": "^1.4.0",
+    "@eslint/js": "^10.0.1",
+    "@eslint/json": "^2.0.1",
+    "@eslint/markdown": "^8.0.3",
     "@tailwindcss/cli": "^4.3.2",
     "@types/bun": "^1.3.14",
-    "tailwindcss": "^4.3.2"
+    "@typescript/native-preview": "^7.0.0-dev.20260706.1",
+    "eslint": "^10.6.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-lit": "^2.3.1",
+    "eslint-plugin-wc": "^3.1.0",
+    "globals": "^17.7.0",
+    "prettier": "^3.9.4",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "tailwindcss": "^4.3.2",
+    "typescript-eslint": "^8.63.0"
   },
   "peerDependencies": {
     "typescript": "^6.0.3"

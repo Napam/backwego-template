@@ -1,14 +1,14 @@
 export function getTailwindCSSHREF() {
-  const link = document.querySelector("#tailwindcss");
+  const link = document.querySelector('#tailwindcss')
   if (link) {
-    return link.getAttribute("href") as string;
+    return link.getAttribute('href') as string
   }
-  return "";
+  return ''
 }
 
 /**
  * Convenience template literal tag to hint tailwind to sort
  */
 export function tw(strings: TemplateStringsArray, ...values: unknown[]) {
-  return String.raw({ raw: strings }, ...values);
+  return String.raw({ raw: strings }, ...values)
 }

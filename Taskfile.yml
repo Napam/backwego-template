@@ -119,24 +119,23 @@ tasks:
   check:
     desc: Run all checks (formatting, linting, compile)
     cmds:
-      - task: check.templ
       - task: check.go
       - task: check.web
 
   check.go:
-    desc: Go vet and compile check
-    cmds:
-      - go vet ./...
-      - go build ./...
-
-  check.templ:
-    desc: Templ generate check (ensures .templ files compile)
+    desc: Go templ generate, vet and compile check
     cmds:
       - go tool templ generate
       - go vet ./...
+      - go build ./...
 
   check.web:
-    desc: TypeScript type check
+    desc: Prettier, ESLint, TypeScript, and build check (parallel)
     dir: ./web
     cmds:
-      - bunx tsc --noEmit
+      - |
+        bunx prettier --check . &
+        bunx eslint . &
+        bunx @typescript/native-preview --noEmit &
+        bun run build.ts &
+        wait

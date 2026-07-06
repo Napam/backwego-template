@@ -28,6 +28,7 @@ Features:
   toggling)
 - Hot reload for Go, templ, TypeScript, and TailwindCSS just by using `task dev`
 - Dockerfile for building scratch image ready
+- eslint and prettier comes preconfigured
 
 See `Taskfile.yml` for available commands.
 

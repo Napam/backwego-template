@@ -1,4 +1,4 @@
-import { LitElement } from "lit";
+import { LitElement } from 'lit'
 
 /**
  * Like LitElement, but without shadow dom. Useful for basic things that
@@ -8,6 +8,6 @@ import { LitElement } from "lit";
  */
 export class LightLitElement extends LitElement {
   protected createRenderRoot(): HTMLElement | DocumentFragment {
-    return this;
+    return this
   }
 }

@@ -1,19 +1,16 @@
-import { html } from "lit";
-import { customElement, property } from "lit/decorators.js";
-import { twMerge } from "tailwind-merge";
-import { LightLitElement } from "../light-lit-element";
+import { html } from 'lit'
+import { customElement, property } from 'lit/decorators.js'
+import { twMerge } from 'tailwind-merge'
+import { LightLitElement } from '../light-lit-element'
 
-@customElement("sun-icon")
+@customElement('sun-icon')
 export class SunIcon extends LightLitElement {
-  @property({ type: String }) svgClass = "";
+  @property({ type: String }) svgClass = ''
 
   render() {
     return html`
       <svg
-        class=${twMerge(
-          "size-6 text-gray-600 dark:text-gray-200",
-          this.svgClass,
-        )}
+        class=${twMerge('size-6 text-gray-600 dark:text-gray-200', this.svgClass)}
         xmlns="http://www.w3.org/2000/svg"
         width="18"
         height="18"
@@ -34,6 +31,6 @@ export class SunIcon extends LightLitElement {
         <path d="m6.34 17.66-1.41 1.41" />
         <path d="m19.07 4.93-1.41 1.41" />
       </svg>
-    `;
+    `
   }
 }
