@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+echo "Pre-push: full static and compile checks"
+task check
+echo "Pre-push: all checks passed ✅"

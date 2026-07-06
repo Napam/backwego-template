@@ -4,11 +4,17 @@ tasks:
   init:
     cmds:
       - task init.js
+      - task init.hooks
 
   init.js:
     dir: ./web
     cmds:
       - bun install
+
+  init.hooks:
+    cmds:
+      - rm -rf .git/hooks
+      - ln -s ../.hooks .git/hooks
 
   update.go:
     cmds:
@@ -126,8 +132,10 @@ tasks:
     desc: Go templ generate, vet and compile check
     cmds:
       - go tool templ generate
-      - go vet ./...
-      - go build ./...
+      - |
+        go vet ./... &
+        go build ./... &
+        wait
 
   check.web:
     desc: Prettier, ESLint, TypeScript, and build check (parallel)

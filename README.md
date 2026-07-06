@@ -10,6 +10,30 @@ Requirements:
 - [task](https://taskfile.dev)
 - [bun](https://bun.com/) - for frontend asset building
 
+## Quickstart
+
+1. Clone the repo or get it as a template
+1. In repo root run `task dev`
+   - This will automatically setup git pre-push hook
+1. Site with hot reload is at `localhost:7331`
+
+For production build: `task build.go` (output in `bin/app`).
+
+Docker is ready to go:
+
+```
+task build.docker       # build image
+task build.docker.run   # build and run
+```
+
+See `Taskfile.yml` for available commands.
+
+## How it works
+
+Server renders HTML with templ. Forms POST to the server, which processes and
+redirects back. No client-side JS required — web components enhance where
+needed.
+
 Tech stack:
 
 - [templ](https://templ.guide) - HTML templating
@@ -28,30 +52,8 @@ Features:
   toggling)
 - Hot reload for Go, templ, TypeScript, and TailwindCSS just by using `task dev`
 - Dockerfile for building scratch image ready
-- eslint and prettier comes preconfigured
-
-See `Taskfile.yml` for available commands.
-
-## How it works
-
-Server renders HTML with templ. Forms POST to the server, which processes and
-redirects back. No client-side JS required — web components enhance where
-needed.
-
-## Quickstart
-
-1. Clone the repo
-2. In repo root run `task dev`
-3. Site with hot reload is at `localhost:7331`
-
-For production build: `task build.go` (output in `bin/app`).
-
-Docker is ready to go:
-
-```
-task build.docker       # build image
-task build.docker.run   # build and run
-```
+- eslint and prettier comes preconfigured, one can do a full backend+frontend
+  static and compile check with `task check`
 
 ## Renaming
 
@@ -68,9 +70,9 @@ name, `backwego-template` → your kebab-case name across all source files.
 
 ```
 cmd/serve/    entry point, routes
-web/          frontend (components, templates, styles)
+web/          frontend (components, templates, styles, templ code)
 db/           migrations and sqlc queries
-lib/          shared libraries (embed, logging)
+lib/          shared go libraries (logging)
 ```
 
 ## What next
@@ -89,11 +91,11 @@ From here you'll probably want to:
   `slog.NewJSONHandler(os.Stdout, ...)` in `cmd/serve/main.go` for
   production-ready JSON logs
 
-## This template is mostly made for myself (that is, neovim heavy setup)
+## This template is mostly made for myself
 
 I have tried to structure the template such that it is nice to use in general
-for anybody, but is should be noted I have primarily optimized the template for
-the tools I use in general:
+for anybody, but it should be noted I have primarily optimized the template for
+the tools and workflows I use in general:
 
 1. Neovim 0.12+ with my custom config
 2. Being very CLI-first

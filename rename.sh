@@ -115,4 +115,4 @@ echo "Regenerating build artifacts..."
 ( go tool templ generate > /dev/null 2>&1) || echo "  (skipped templ regen: templ tool unavailable)"
 
 echo ""
-echo "Done! Verify with: go build ./cmd/serve"
+echo "Done! Verify with: task check"
