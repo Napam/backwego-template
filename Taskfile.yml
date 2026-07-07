@@ -2,9 +2,9 @@ version: 3
 
 tasks:
   init:
-    cmds:
-      - task init.js
-      - task init.hooks
+    deps:
+      - init.js
+      - init.hooks
 
   init.js:
     dir: ./web
@@ -108,9 +108,15 @@ tasks:
     cmds:
       - task init.js
       - rm -rf web/static/*
-      - task gen.templ & task build.tailwind & task build.web & wait
+      - task build.go.assets
       # -s -w strips symbols and debuginfo, -trimpath removes module relative paths
       - go build -ldflags="-s -w" -trimpath -o ./bin/app ./cmd/serve
+
+  build.go.assets:
+    deps:
+      - gen.templ
+      - build.tailwind
+      - build.web
 
   build.tailwind:
     dir: web
@@ -124,26 +130,31 @@ tasks:
 
   check:
     desc: Run all checks (formatting, linting, compile)
-    cmds:
-      - task: check.go
-      - task: check.web
+    deps:
+      - check.go
+      - check.web
 
   check.go:
     desc: Go templ generate, vet and compile check
     cmds:
       - go tool templ generate
       - |
-        go vet ./... &
-        go build ./... &
-        wait
+        go vet ./... & p1=$!
+        go build ./... & p2=$!
+        ec=0; wait $p1 || ec=$?; wait $p2 || ec=$?; exit $ec
 
   check.web:
     desc: Prettier, ESLint, TypeScript, and build check (parallel)
     dir: ./web
     cmds:
       - |
-        bunx prettier --check . &
-        bunx eslint . &
-        bunx @typescript/native-preview --noEmit &
-        bun run build.ts &
-        wait
+        bunx prettier --check . & p1=$!
+        bunx eslint . & p2=$!
+        bunx @typescript/native-preview --noEmit & p3=$!
+        bun run build.ts & p4=$!
+        ec=0
+        wait $p1 || ec=$?
+        wait $p2 || ec=$?
+        wait $p3 || ec=$?
+        wait $p4 || ec=$?
+        exit $ec
