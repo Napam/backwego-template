@@ -1,8 +1,11 @@
 # Backwego Project Template
 
-Opinionated template for SSR-first Go apps using templ for HTML, tailwind for
+Opinionated template for SSR-first Go apps using templ for HTML, tailwindcss for
 styling, Lit for web components, sqlite for data, goose migrations, all compiled
 into a single binary.
+
+This template is a base for hypermedia driven applications, and fits very well
+with frameworks such as [htmx](https://htmx.org/).
 
 Requirements:
 
@@ -12,7 +15,6 @@ Requirements:
 
 ## Quickstart
 
-1. Clone the repo or get it as a template
 1. In repo root run `task dev`
    - This will automatically setup git pre-push hook
 1. Site with hot reload is at `localhost:7331`
@@ -57,7 +59,7 @@ Features:
 
 ## Renaming
 
-Run the interactive rename wizard:
+A script is made for quick renaming of the project. Run the interactive rename wizard:
 
 `./rename.sh`
 
@@ -66,18 +68,9 @@ name, `backwego-template` → your kebab-case name across all source files.
 
 **Note:** This is a one-way operation. To undo, use `git checkout .`.
 
-## Project structure
-
-```
-cmd/serve/    entry point, routes
-web/          frontend (components, templates, styles, templ code)
-db/           migrations and sqlc queries
-lib/          shared go libraries (logging)
-```
-
 ## What next
 
-From here you'll probably want to:
+From here you may want to:
 
 - **Add a hypermedia framework** — [htmx](https://htmx.org/),
   [Datastar](https://data-star.dev/), or [Alpine
@@ -90,6 +83,33 @@ From here you'll probably want to:
 - **Switch to JSON logging** — replace `logging.NewHandler(...)` with
   `slog.NewJSONHandler(os.Stdout, ...)` in `cmd/serve/main.go` for
   production-ready JSON logs
+
+## Project structure
+
+```
+.
+├── cmd
+│   └── serve           go entrypoint
+│
+├── db                  sqlc and migrations
+│
+├── embed_disabled.go   embed module used for dev mode. in local dev it
+│                       does not actually embed, it just serves
+│
+├── embed.go            embed module for production builds
+│
+├── lib                 shared go libraries
+│
+├── db                  sqlc and migrations
+│
+├── Taskfile.yml        taskfile with every tasks
+│
+└── web
+    ├── build.ts        script to build web assets, outputs to web/static
+    ├── lib             shared typescript libraries
+    ├── root            templ root page
+    └── static          this dirwill be embedded into go binary
+```
 
 ## This template is mostly made for myself
 
