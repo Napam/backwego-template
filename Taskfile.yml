@@ -150,7 +150,7 @@ tasks:
       - |
         bunx prettier --check . & p1=$!
         bunx eslint . & p2=$!
-        bunx @typescript/native-preview --noEmit & p3=$!
+        bunx typescript-7 --noEmit & p3=$!
         bun run build.ts & p4=$!
         ec=0
         wait $p1 || ec=$?
