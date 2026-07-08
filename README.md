@@ -21,6 +21,9 @@ Requirements:
 
 For production build: `task build.go` (output in `bin/app`).
 
+Directory conventions: `bin/` holds build outputs, `tmp/` holds temporary
+files (pidfiles, scratch data, etc). Both are gitignored.
+
 Docker is ready to go:
 
 ```
@@ -61,7 +64,7 @@ Features:
 
 A script is made for quick renaming of the project. Run the interactive rename wizard:
 
-`./rename.sh`
+`./scripts/rename.sh`
 
 This replaces `backwegotemplate` → your name, `Backwego Template` → your display
 name, `backwego-template` → your kebab-case name across all source files.

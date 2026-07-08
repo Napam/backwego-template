@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Always operate from the repo root, regardless of where this is invoked from.
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
 # --- defaults ---
 DEFAULT_NAME="myapp"
 DEFAULT_DISPLAY="My App"
@@ -9,7 +12,7 @@ echo "╔═══════════════════════�
 echo "║       Backwego Template Renamer      ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
-echo "⚠  WARNING: This is a one-way operation."
+echo "⚠   WARNING: This is a one-way operation."
 echo "   To undo, use: git checkout ."
 echo ""
 
@@ -40,7 +43,7 @@ else
 fi
 
 echo ""
-echo "═══════════════════════════════════════"
+echo "══════════════════════════════════════"
 echo "  Will replace:"
 echo "    backwegotemplate  ->  $PKG  (package name, refs, log strings)"
 if [[ "$MODULE" != "$PKG" ]]; then
@@ -48,9 +51,9 @@ if [[ "$MODULE" != "$PKG" ]]; then
 fi
 echo "    Backwego Template ->  $DISPLAY"
 echo "    backwego-template ->  $KEBAB"
-echo "═══════════════════════════════════════"
+echo "══════════════════════════════════════"
 echo ""
-echo "⚠  One-way operation. Undo with: git checkout ."
+echo "⚠   One-way operation. Undo with: git checkout ."
 echo ""
 read -r -p "Continue? [y/N] " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
