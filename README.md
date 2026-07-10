@@ -91,27 +91,36 @@ From here you may want to:
 
 ```
 .
+├── bin                 build output, gitignored
+│
 ├── cmd
-│   └── serve           go entrypoint
+│   └── serve           go entrypoint
+│
+├── data                runtime sqlite data (gitignored inside)
+│
+├── Dockerfile          production container image
 │
 ├── db                  sqlc and migrations
 │
-├── embed_disabled.go   embed module used for dev mode. in local dev it
-│                       does not actually embed, it just serves
+├── files_embed.go      embeds web/static for production builds
 │
-├── embed.go            embed module for production builds
+├── files_noembed.go    empty embed stub for dev mode, noembed tag
 │
 ├── lib                 shared go libraries
 │
-├── db                  sqlc and migrations
+├── scripts
+│   ├── dev-run.sh      dev server runner
+│   └── rename.sh       project rename wizard
 │
 ├── Taskfile.yml        taskfile with every tasks
+│
+├── tmp                 temp files/pidfiles, gitignored
 │
 └── web
     ├── build.ts        script to build web assets, outputs to web/static
     ├── lib             shared typescript libraries
     ├── root            templ root page
-    └── static          this dirwill be embedded into go binary
+    └── static          this dir will be embedded into go binary
 ```
 
 ## This template is mostly made for myself
