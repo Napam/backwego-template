@@ -1,4 +1,4 @@
-//go:build devlocal
+//go:build noembed
 
 package backwegotemplate
 
