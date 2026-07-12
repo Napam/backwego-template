@@ -18,6 +18,8 @@ Requirements:
 1. In repo root run `task dev`
    - This will automatically setup git pre-push hook
 1. Site with hot reload is at `localhost:7331`
+1. Application entrypoint is at `cmd/serve/main.go`, frontend root page is at
+   `web/root/root.templ`. They are good starting points to start making changes.
 
 For production build: `task build.go` (output in `bin/app`).
 
