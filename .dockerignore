@@ -1,0 +1,26 @@
+# VCS
+.git/
+.jj/
+
+# Build artifacts
+bin/
+tmp/
+web/static/
+web/tmp/
+
+# Runtime data
+data/
+
+# Dependencies
+web/node_modules/
+
+# macOS
+**/.DS_Store
+
+# Docs / config not needed in build
+AGENTS.md
+LICENSE
+README.md
+.hooks/
+.gitignore
+.dockerignore
