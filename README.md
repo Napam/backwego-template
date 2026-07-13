@@ -17,7 +17,7 @@ Requirements:
 
 1. In repo root run `task dev`
    - This will automatically setup git pre-push hook
-1. Site with hot reload is at `localhost:7331`
+1. Site with live reload is at `localhost:7331`
 1. Application entrypoint is at `cmd/serve/main.go`, frontend root page is at
    `web/root/root.templ`. They are good starting points to start making changes.
 
@@ -57,7 +57,7 @@ Features:
 - Hash-based asset caching for cache busting
 - Web components with shadow DOM and shared TailwindCSS (and working dark mode
   toggling)
-- Hot reload for Go, templ, TypeScript, and TailwindCSS just by using `task dev`
+- Live reload for Go, templ, TypeScript, and TailwindCSS just by using `task dev`
 - Dockerfile for building scratch image ready
 - eslint and prettier comes preconfigured, one can do a full backend+frontend
   static and compile check with `task check`

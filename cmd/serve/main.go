@@ -82,7 +82,7 @@ func main() {
 		logger.Info("Deleted user", slog.Int64("id", id))
 	})
 
-	logger.Info("Server running", slog.String("address", "localhost:8080"))
+	logger.Info("Server running", slog.String("live_reload_address", "localhost:7331 (you have to use 'task dev' for this to work)"), slog.String("address", "localhost:8080"))
 	err = http.ListenAndServe(":8080", router)
 	if err != nil {
 		logger.Error("Server did not exit cleanly", slog.Any("error", err))

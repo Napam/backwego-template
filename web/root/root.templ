@@ -7,7 +7,7 @@ import (
 )
 
 templ RootPage(users []sqlc.User, editID int64) {
-	{{ techAnchorClass := "font-bold dark:font-medium hover:underline text-primary-500 dark:text-primary-400" }}
+	{{ techAnchorClass := "text-primary-500 dark:text-primary-400 font-bold hover:underline dark:font-medium" }}
 	{{ techUndertextClass := "text-gray-500 dark:text-neutral-500" }}
 	<html class="dark">
 		<head>
@@ -15,14 +15,14 @@ templ RootPage(users []sqlc.User, editID int64) {
 			<link rel="stylesheet" id="tailwindcss" href={ backwegotemplate.StaticRootPath("static/tailwind.css") }/>
 			<script src={ backwegotemplate.StaticRootPath("static/bundle.js") }></script>
 		</head>
-		<body class="min-h-screen text-gray-700 bg-gray-50 dark:bg-neutral-900 dark:text-neutral-300">
+		<body class="min-h-screen bg-gray-50 text-gray-700 dark:bg-neutral-900 dark:text-neutral-300">
 			<header class="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/80">
-				<div class="flex justify-between items-center py-4 px-6 mx-auto max-w-3xl">
+				<div class="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
 					<h1 class="text-lg font-bold tracking-tight text-gray-900 dark:text-white">Backwego Template</h1>
 					<theme-button></theme-button>
 				</div>
 			</header>
-			<main class="py-10 px-6 mx-auto max-w-3xl">
+			<main class="mx-auto max-w-3xl px-6 py-10">
 				<section class="mb-12">
 					<p class="mb-6 leading-relaxed text-gray-600 dark:text-neutral-400">
 						A starter template for building fullstack SSR-first web applications
@@ -65,29 +65,29 @@ templ RootPage(users []sqlc.User, editID int64) {
 }
 
 templ ExampleCRUDPart(users []sqlc.User, editID int64) {
-	<section class="flex flex-col gap-4 p-4 bg-white border border-gray-200 rounded-xs dark:bg-neutral-800 dark:border-neutral-700">
-		<div class="flex justify-between items-baseline">
+	<section class="flex flex-col gap-4 rounded-xs border border-gray-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
+		<div class="flex items-baseline justify-between">
 			<h2 class="text-sm text-gray-500 dark:text-neutral-400">Example CRUD - User registry</h2>
 		</div>
 		<p class="text-xs text-gray-400 dark:text-neutral-500">
-			Uses <code class="py-0.5 px-1 bg-gray-100 rounded dark:bg-neutral-900">&lt;input-component&gt;</code> and
-			<code class="py-0.5 px-1 bg-gray-100 rounded dark:bg-neutral-900">&lt;button-component&gt;</code> inside native HTML forms.
+			Uses <code class="rounded bg-gray-100 px-1 py-0.5 dark:bg-neutral-900">&lt;input-component&gt;</code> and
+			<code class="rounded bg-gray-100 px-1 py-0.5 dark:bg-neutral-900">&lt;button-component&gt;</code> inside native HTML forms.
 			Each form POSTs and the server redirects back.
 		</p>
-		<form method="post" action="/users" class="flex gap-2 items-end">
+		<form method="post" action="/users" class="flex items-end gap-2">
 			<input-component
 				name="name"
 				placeholder="New user name"
 				class="grow"
-				inputClass="py-0 px-2 text-sm bg-gray-100 border-none rounded-xs dark:bg-neutral-700"
+				inputClass="rounded-xs border-none bg-gray-100 px-2 py-0 text-sm dark:bg-neutral-700"
 			></input-component>
-			<button-component type="submit" purpose="primary" buttonClass="py-0 px-4 text-sm font-normal">Add +</button-component>
+			<button-component type="submit" purpose="primary" buttonClass="px-4 py-0 text-sm font-normal">Add +</button-component>
 		</form>
 		<table class="w-full text-sm">
 			<thead class="border-b border-gray-200 dark:border-neutral-700">
 				<tr class="text-gray-500 dark:text-neutral-500">
-					<th class="py-1 pr-4 font-normal text-left">ID</th>
-					<th class="py-1 font-normal text-left">Name</th>
+					<th class="py-1 pr-4 text-left font-normal">ID</th>
+					<th class="py-1 text-left font-normal">Name</th>
 					<th></th>
 				</tr>
 			</thead>
@@ -99,24 +99,24 @@ templ ExampleCRUDPart(users []sqlc.User, editID int64) {
 						<td class="pt-2">{ idStr }</td>
 						if isEditing {
 							<td class="pt-2">
-								<form id={ "edit-" + idStr } method="post" action={ "/users/" + idStr + "/update" } class="flex gap-2 items-center">
-									<input name="name" value={ user.Name.String } class="w-full text-sm text-gray-700 bg-transparent border-b border-gray-300 outline-none dark:border-neutral-500 dark:text-neutral-300"/>
+								<form id={ "edit-" + idStr } method="post" action={ "/users/" + idStr + "/update" } class="flex items-center gap-2">
+									<input name="name" value={ user.Name.String } class="w-full border-b border-gray-300 bg-transparent text-sm text-gray-700 outline-none dark:border-neutral-500 dark:text-neutral-300"/>
 								</form>
 							</td>
 						} else {
 							<td class="pt-2">{ user.Name.String }</td>
 						}
-						<td class="flex gap-2 justify-end pt-2">
+						<td class="flex justify-end gap-2 pt-2">
 							if isEditing {
-								<button type="submit" form={ "edit-" + idStr } class="text-xs cursor-pointer text-primary-500 dark:text-primary-400">Save</button>
-								<a href="/" class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 dark:hover:text-neutral-300 dark:text-neutral-500">Cancel</a>
+								<button type="submit" form={ "edit-" + idStr } class="text-primary-500 dark:text-primary-400 cursor-pointer text-xs">Save</button>
+								<a href="/" class="cursor-pointer text-xs text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300">Cancel</a>
 							} else {
 								<a href={ "/?edit=" + idStr } class="cursor-pointer">
-									<edit-icon svgClass="text-gray-400 size-4 dark:text-neutral-500 dark:hover:text-primary-500 hover:text-primary-500"></edit-icon>
+									<edit-icon svgClass="dark:hover:text-primary-500 hover:text-primary-500 size-4 text-gray-400 dark:text-neutral-500"></edit-icon>
 								</a>
 								<form method="post" action={ "/users/" + idStr + "/delete" }>
 									<button type="submit" class="cursor-pointer">
-										<trash-icon svgClass="text-gray-400 hover:text-red-600 size-4 dark:text-neutral-500 dark:hover:text-red-600"></trash-icon>
+										<trash-icon svgClass="size-4 text-gray-400 hover:text-red-600 dark:text-neutral-500 dark:hover:text-red-600"></trash-icon>
 									</button>
 								</form>
 							}
