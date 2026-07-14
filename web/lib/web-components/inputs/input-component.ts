@@ -12,7 +12,7 @@ const disabledClass = twJoin(
 const defaultInputClass = twJoin(
   'flex w-full items-center rounded-xs border p-2.5 placeholder:font-extralight',
   'border-gray-300 bg-gray-50 text-gray-600 placeholder:text-gray-400',
-  'dark:bg-neutral-750 dark:border-neutral-500 dark:text-neutral-200 dark:placeholder:text-neutral-400',
+  'dark:border-neutral-500 dark:bg-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400',
   focusWithinClass
 )
 

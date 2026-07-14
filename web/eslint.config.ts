@@ -10,11 +10,12 @@ import css from '@eslint/css'
 // export gives a strictly typed `flat/recommended: Linter.FlatConfig`.
 import { configs as litConfigs } from 'eslint-plugin-lit'
 import { configs as wcConfigs } from 'eslint-plugin-wc'
+import betterTailwindcss from 'eslint-plugin-better-tailwindcss'
+import { getDefaultSelectors } from 'eslint-plugin-better-tailwindcss/api/defaults'
 import prettier from 'eslint-config-prettier'
 import { defineConfig } from 'eslint/config'
 
 export default defineConfig([
-  // 1. Global ignores
   // tmp/, static/, dist/ hold generated output and aren't linted.
   // node_modules and dotfiles are ignored by default in flat config.
   // tailwind.css is a Tailwind v4 manifest: it uses @custom-variant / @theme
@@ -23,14 +24,13 @@ export default defineConfig([
     ignores: ['tmp/**', 'static/**', 'dist/**', 'tailwind.css'],
   },
 
-  // 2. Base JS & browser globals (applies to web-component source)
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts}'],
     extends: [js.configs.recommended, litConfigs['flat/recommended'], wcConfigs['flat/recommended']],
     languageOptions: { globals: globals.browser },
   },
 
-  // 3. TypeScript: recommended rules + type-aware overrides
+  // TypeScript: recommended rules + type-aware overrides
   // defineConfig flattens arrays, so tseslint.configs.recommended drops in directly.
   tseslint.configs.recommended,
   {
@@ -51,7 +51,38 @@ export default defineConfig([
     },
   },
 
-  // 4. Build scripts run under Bun
+  // Tailwind CSS: correctness rules only (no-unknown-classes, no-conflicting-classes).
+  // Stylistic rules (class sorting etc.) are intentionally omitted: sorting is
+  // already handled by prettier-plugin-tailwindcss. Classes in twJoin/twMerge
+  // calls (tailwind-merge) are detected out of the box.
+  {
+    files: ['**/*.{js,mjs,cjs,ts,mts,cts}'],
+    extends: [betterTailwindcss.configs.correctness],
+    settings: {
+      'better-tailwindcss': {
+        // Tailwind v4: resolve valid classes (incl. custom @theme colors) from
+        // the CSS entry point. Relative to the eslint cwd (web/).
+        entryPoint: 'tailwind.css',
+        // The plugin can't see class="..." inside lit html`` templates, so class
+        // strings must flow through a detected source: twJoin/twMerge calls
+        // (covered by the defaults) or variables matched here. A custom
+        // `selectors` list REPLACES the defaults, hence the spread. The extra
+        // selector lints string values (incl. object values, e.g. a
+        // `purposeClasses` map) of any variable ending in ...Class/...Classes.
+        selectors: [
+          ...getDefaultSelectors(),
+          // The plugin requires the regex to match the WHOLE name (not just
+          // a substring), hence the leading .*
+          {
+            kind: 'variable',
+            name: '.*[cC]lass(es)?$',
+            match: [{ type: 'strings' }, { type: 'objectValues' }],
+          },
+        ],
+      },
+    },
+  },
+
   // globals has no Bun key, so compose it from node globals + a manual Bun global.
   {
     files: ['build.ts', 'scripts/**/*.{ts,mjs}'],
@@ -63,7 +94,6 @@ export default defineConfig([
     },
   },
 
-  // 5. JSON Configurations
   {
     files: ['**/*.json'],
     plugins: { json },
@@ -82,16 +112,12 @@ export default defineConfig([
     language: 'json/json5',
     extends: ['json/recommended'],
   },
-
-  // 6. Markdown
   {
     files: ['**/*.md'],
     plugins: { markdown },
     language: 'markdown/gfm',
     extends: ['markdown/recommended'],
   },
-
-  // 7. CSS
   {
     files: ['**/*.css'],
     plugins: { css },
@@ -99,6 +125,6 @@ export default defineConfig([
     extends: ['css/recommended'],
   },
 
-  // 8. Disable formatting rules that conflict with Prettier (must be last)
+  // Disable formatting rules that conflict with Prettier (must be last)
   prettier,
 ])
