@@ -1,8 +1,6 @@
 import { LitElement, ReactiveElement } from 'lit'
 import { getTailwindCSSHREF } from './utils/css'
 
-type Theme = 'dark' | 'light'
-
 // Fetches the CSS text synchronously (hits the HTTP cache since the page
 // <link> tag already loaded the file), constructs a CSSStyleSheet object
 // once, and shares it across all shadow roots — no re-parsing, no FOUC.
@@ -27,9 +25,12 @@ function getSharedTailwindSheet(): CSSStyleSheet {
 const hostSheet = new CSSStyleSheet()
 hostSheet.replaceSync(':host { display: block; }')
 
+/**
+ * LitElement with shadow DOM that shares the page's Tailwind stylesheet and
+ * follows the global dark/light theme. Use this when a component needs slots
+ * (which require shadow DOM); otherwise prefer LightLitElement.
+ */
 export class StyledLitElement extends LitElement {
-  currentTheme: Theme = 'light'
-
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     const shadowRoot = this.attachShadow((this.constructor as typeof ReactiveElement).shadowRootOptions)
 
@@ -40,60 +41,24 @@ export class StyledLitElement extends LitElement {
     const div = document.createElement('div')
     shadowRoot.appendChild(div)
 
-    subscribeDarkMode({
-      runOnInit: true,
-      onChange: (theme) => {
-        this.currentTheme = theme
-        div.classList.toggle('dark', this.currentTheme === 'dark')
-        this.themeChanged(theme)
-      },
-    })
-
     return div
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  themeChanged(_: Theme) {
-    // Do nothing by default
-  }
-}
-
-export function subscribeDarkMode(args: { runOnInit?: boolean; onChange?: (t: Theme) => void }) {
-  const { runOnInit, onChange } = args
-
-  if (runOnInit) {
-    onChange?.(checkDarkMode())
+  // Shadow DOM can't see the "dark" class on <html>, so mirror it onto the
+  // render root. theme.ts dispatches "theme-change" on every theme change.
+  private syncTheme = () => {
+    const dark = document.documentElement.classList.contains('dark')
+    ;(this.renderRoot as HTMLElement).classList.toggle('dark', dark)
   }
 
-  checkDarkMode()
-  new MutationObserver((mutations) => onChange?.(checkDarkMode(mutations))).observe(
-    document.documentElement,
-    {
-      attributes: true,
-      attributeFilter: ['class'],
-    }
-  )
-}
-
-export function checkDarkMode(mutations?: MutationRecord[]): Theme {
-  const globalRoot = document.documentElement
-  if (!mutations) {
-    if (globalRoot.classList.contains('dark')) {
-      return 'dark'
-    } else {
-      return 'light'
-    }
+  connectedCallback() {
+    super.connectedCallback()
+    this.syncTheme()
+    window.addEventListener('theme-change', this.syncTheme)
   }
 
-  for (const mutation of mutations) {
-    if (mutation.attributeName === 'class') {
-      if (globalRoot.classList.contains('dark')) {
-        return 'dark'
-      } else {
-        return 'light'
-      }
-    }
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    window.removeEventListener('theme-change', this.syncTheme)
   }
-
-  return 'light'
 }

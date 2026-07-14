@@ -75,13 +75,8 @@ templ ExampleCRUDPart(users []sqlc.User, editID int64) {
 			Each form POSTs and the server redirects back.
 		</p>
 		<form method="post" action="/users" class="flex items-end gap-2">
-			<input-component
-				name="name"
-				placeholder="New user name"
-				class="grow"
-				inputClass="rounded-xs border-none bg-gray-100 px-2 py-0 text-sm dark:bg-neutral-700"
-			></input-component>
-			<button-component type="submit" purpose="primary" buttonClass="px-4 py-0 text-sm font-normal">Add +</button-component>
+			<input-component name="name" placeholder="New user name" class="grow"></input-component>
+			<button-component type="submit" buttonClass="font-normal">Add +</button-component>
 		</form>
 		<table class="w-full text-sm">
 			<thead class="border-b border-gray-200 dark:border-neutral-700">

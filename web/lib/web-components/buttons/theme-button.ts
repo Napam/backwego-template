@@ -20,13 +20,20 @@ export class ThemeButton extends LightLitElement {
   @property({ type: String }) override className = ''
   @state() private theme: Theme = 'light'
 
+  private handleThemeChange = ((e: CustomEvent<Theme>) => {
+    this.theme = e.detail
+  }) as EventListener
+
   connectedCallback() {
     super.connectedCallback()
     // Check initial theme from <html> class (already set by theme.ts).
     this.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-    window.addEventListener('theme-change', ((e: CustomEvent<Theme>) => {
-      this.theme = e.detail
-    }) as EventListener)
+    window.addEventListener('theme-change', this.handleThemeChange)
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    window.removeEventListener('theme-change', this.handleThemeChange)
   }
 
   private handleClick() {

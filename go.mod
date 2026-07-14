@@ -2,6 +2,9 @@ module backwegotemplate
 
 go 1.26.0
 
+// some npm deps ship go sources without a go.mod, keep them out of ./...
+ignore ./web/node_modules
+
 tool (
 	github.com/a-h/templ/cmd/templ
 	github.com/bokwoon95/wgo

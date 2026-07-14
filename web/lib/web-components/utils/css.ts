@@ -5,10 +5,3 @@ export function getTailwindCSSHREF() {
   }
   return ''
 }
-
-/**
- * Convenience template literal tag to hint tailwind to sort
- */
-export function tw(strings: TemplateStringsArray, ...values: unknown[]) {
-  return String.raw({ raw: strings }, ...values)
-}
