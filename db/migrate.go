@@ -9,7 +9,12 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-func RunMigrations(ctx context.Context, migrationsFS fs.FS, db *sql.DB, logger *slog.Logger) ([]*goose.MigrationResult, error) {
+func RunMigrations(
+	ctx context.Context,
+	migrationsFS fs.FS,
+	db *sql.DB,
+	logger *slog.Logger,
+) ([]*goose.MigrationResult, error) {
 	provider, err := goose.NewProvider(
 		goose.DialectSQLite3,
 		db,

@@ -50,11 +50,19 @@ func (handlerContext *HandlerContext) Enabled(ctx context.Context, level slog.Le
 }
 
 func (handlerContext *HandlerContext) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &HandlerContext{h: handlerContext.h.WithAttrs(attrs), b: handlerContext.b, m: handlerContext.m}
+	return &HandlerContext{
+		h: handlerContext.h.WithAttrs(attrs),
+		b: handlerContext.b,
+		m: handlerContext.m,
+	}
 }
 
 func (handlerContext *HandlerContext) WithGroup(name string) slog.Handler {
-	return &HandlerContext{h: handlerContext.h.WithGroup(name), b: handlerContext.b, m: handlerContext.m}
+	return &HandlerContext{
+		h: handlerContext.h.WithGroup(name),
+		b: handlerContext.b,
+		m: handlerContext.m,
+	}
 }
 
 func StringifyMap(m map[string]any) string {
@@ -64,8 +72,12 @@ func StringifyMap(m map[string]any) string {
 			escaped := strings.ReplaceAll(s, `"`, `\"`)
 			fmt.Fprintf(&sb, "%s=\"%s\" ", colorize(LIGHT_BLUE, k), colorize(LIMEGREEN, escaped))
 		} else {
-
-			fmt.Fprintf(&sb, "%s=%v ", colorize(LIGHT_BLUE, k), colorize(LIMEGREEN, fmt.Sprintf("%v", v)))
+			fmt.Fprintf(
+				&sb,
+				"%s=%v ",
+				colorize(LIGHT_BLUE, k),
+				colorize(LIMEGREEN, fmt.Sprintf("%v", v)),
+			)
 		}
 	}
 	return sb.String()

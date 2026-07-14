@@ -1,11 +1,6 @@
 package main
 
 import (
-	"backwegotemplate"
-	"backwegotemplate/db"
-	"backwegotemplate/lib/generated/sqlc"
-	"backwegotemplate/lib/logging"
-	"backwegotemplate/web/root"
 	"context"
 	"database/sql"
 	"log/slog"
@@ -13,6 +8,11 @@ import (
 	"os"
 	"strconv"
 
+	"backwegotemplate"
+	"backwegotemplate/db"
+	"backwegotemplate/lib/generated/sqlc"
+	"backwegotemplate/lib/logging"
+	"backwegotemplate/web/root"
 	"github.com/go-chi/chi/v5"
 	_ "modernc.org/sqlite"
 )
@@ -61,7 +61,11 @@ func main() {
 		name := r.FormValue("name")
 		user, _ := queries.CreateUser(r.Context(), sql.NullString{String: name, Valid: name != ""})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
-		logger.Info("Created user", slog.Int64("id", user.ID), slog.String("name", user.Name.String))
+		logger.Info(
+			"Created user",
+			slog.Int64("id", user.ID),
+			slog.String("name", user.Name.String),
+		)
 	})
 
 	router.Post("/users/{id}/update", func(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +86,14 @@ func main() {
 		logger.Info("Deleted user", slog.Int64("id", id))
 	})
 
-	logger.Info("Server running", slog.String("live_reload_address", "localhost:7331 (you have to use 'task dev' for this to work)"), slog.String("address", "localhost:8080"))
+	logger.Info(
+		"Server running",
+		slog.String(
+			"live_reload_address",
+			"localhost:7331 (you have to use 'task dev' for this to work)",
+		),
+		slog.String("address", "localhost:8080"),
+	)
 	err = http.ListenAndServe(":8080", router)
 	if err != nil {
 		logger.Error("Server did not exit cleanly", slog.Any("error", err))

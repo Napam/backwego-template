@@ -103,6 +103,8 @@ while IFS= read -r f; do
     sed -i '' "s|\"backwegotemplate\\([/\"]\\)|\"$M\\1|g" "$f"
     # qualified references: 'backwegotemplate.' -> '<pkg>.'
     sed -i '' "s|backwegotemplate\\.|$P.|g" "$f"
+    # gofumpt module-path in .golangci.yml must be the full module path
+    sed -i '' "s|module-path: backwegotemplate\$|module-path: $M|" "$f"
     # everything else (localStorage keys, log strings, docker tags, ...)
     sed -i '' "s|backwegotemplate|$P|g" "$f"
     # display name

@@ -3,10 +3,10 @@
 package backwegotemplate
 
 import (
-	"backwegotemplate/lib/hashfs"
 	"embed"
 	"io/fs"
 
+	"backwegotemplate/lib/hashfs"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -16,8 +16,10 @@ var webFS embed.FS
 //go:embed db/migrations/*
 var migrationsFS embed.FS
 
-var MigrationsFS fs.FS
-var hashFS *hashfs.FS
+var (
+	MigrationsFS fs.FS
+	hashFS       *hashfs.FS
+)
 
 func init() {
 	stripped, err := fs.Sub(webFS, "web")

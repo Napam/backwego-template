@@ -16,7 +16,8 @@ Requirements:
 ## Quickstart
 
 1. In repo root run `task dev`
-   - This will automatically setup git pre-push hook
+   - This will automatically setup the git pre-push hook and install the
+     pinned golangci-lint into `bin/`
 1. Site with live reload is at `localhost:7331`
 1. Application entrypoint is at `cmd/serve/main.go`, frontend root page is at
    `web/root/root.templ`. They are good starting points to start making changes.
@@ -59,8 +60,19 @@ Features:
   toggling)
 - Live reload for Go, templ, TypeScript, and TailwindCSS just by using `task dev`
 - Dockerfile for building scratch image ready
-- eslint and prettier comes preconfigured, one can do a full backend+frontend
-  static and compile check with `task check`
+- golangci-lint, eslint, and prettier come preconfigured, one can do a full
+  backend+frontend static, lint, and compile check with `task check`
+
+## Linting and checks
+
+`task check` runs all checks in parallel: compile + golangci-lint for the go
+code, and prettier + eslint + typescript + bundle build for the web code. The
+git pre-push hook (installed by `task init`) runs `task check` as well.
+
+golangci-lint notes:
+
+- The version is pinned in `.golangci-version` and auto-installed into `bin/`
+  by `task init`, so it is not a manual requirement.
 
 ## Renaming
 
@@ -93,6 +105,8 @@ From here you may want to:
 
 ```
 .
+├── .golangci.yml       lint config, version pin in .golangci-version
+│
 ├── bin                 build output, gitignored
 │
 ├── cmd

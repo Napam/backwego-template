@@ -187,7 +187,7 @@ func (h *fsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Fetch file info. Disallow directories from being displayed.
 	fi, err := f.Stat()
@@ -216,7 +216,7 @@ func (h *fsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Flush header and write content.
 		w.WriteHeader(http.StatusOK)
 		if r.Method != "HEAD" {
-			io.Copy(w, f)
+			_, _ = io.Copy(w, f)
 		}
 	}
 }

@@ -1,0 +1,38 @@
+version: "2"
+
+linters:
+  enable:
+    - errorlint
+    - bodyclose
+    - nilerr
+    - rowserrcheck
+    - sqlclosecheck
+  exclusions:
+    paths:
+      # third-party Go sources vendored by bun into web/node_modules
+      - web/node_modules
+
+formatters:
+  enable:
+    - golines
+    # gofumpt is a superset of gofmt (including the -s simplify rules),
+    # so gofmt itself is not needed
+    - gofumpt
+    - gci
+  exclusions:
+    paths:
+      - web/node_modules
+  settings:
+    golines:
+      max-len: 100
+      tab-len: 4
+      shorten-comments: true
+      reformat-tags: true
+      chain-split-dots: true
+
+    gofumpt:
+      extra-rules: false
+      # required so gofumpt recognizes backwegotemplate/... imports as local
+      # module imports instead of stdlib (dot-less module name); update this
+      # if you rename the module
+      module-path: backwegotemplate

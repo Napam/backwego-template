@@ -1,59 +1,103 @@
-version: 3
+version: "3"
 
 tasks:
   init:
+    desc: Install all tooling and dependencies (go lint, js deps, git hooks)
     deps:
+      - init.go
       - init.js
       - init.hooks
 
   init.js:
+    desc: Install js dependencies into web/node_modules
     dir: ./web
     cmds:
       - bun install
 
+  init.go:
+    desc: Install the pinned golangci-lint into ./bin
+    vars:
+      GOLANGCI_LINT_VERSION:
+        sh: cat .golangci-version
+    status:
+      # skip install when the pinned version is already in ./bin
+      - test "$(./bin/golangci-lint version --short 2>/dev/null)" = "{{trimPrefix "v" .GOLANGCI_LINT_VERSION}}"
+    cmds:
+      # installs into ./bin
+      - curl -sSfL https://golangci-lint.run/install.sh | sh -s {{.GOLANGCI_LINT_VERSION}}
+
   init.hooks:
+    desc: Symlink .hooks as the git hooks directory
+    status:
+      # skip when .git/hooks already points at .hooks
+      - test "$(readlink .git/hooks)" = "../.hooks"
     cmds:
       - rm -rf .git/hooks
       - ln -s ../.hooks .git/hooks
 
   update.go:
+    desc: Update go modules, tools and the pinned golangci-lint
     cmds:
       - go get -u tool # updates every module in the go.mod tool() directive
       - go get -u ./...
       - go mod tidy
+      - task: update.golangci
+
+  update.golangci:
+    # Reason we do it like this is because golangci-lint states:
+    # Using go install/go get, “tools pattern”, and tool command/directives installations
+    # aren’t guaranteed to work. We recommend using binary installation.
+    desc: Pin golangci-lint to the latest release (writes .golangci-version).
+    cmds:
+      - |
+        latest=$(curl -sSfL https://api.github.com/repos/golangci/golangci-lint/releases/latest \
+          | grep -o '"tag_name": *"[^"]*"' | grep -o 'v[0-9][0-9.]*')
+        [ -n "$latest" ] || { echo "could not resolve latest golangci-lint version" >&2; exit 1; }
+        echo "$latest" > .golangci-version
+        echo "pinned golangci-lint to $latest"
 
   update.web:
+    desc: Update js dependencies to their latest versions
     dir: ./web
     cmds:
       - bun update --latest
       - bun install
 
   db.migrate:
+    desc: Run goose migrations against the local sqlite database
     cmds:
       - go tool goose sqlite3 -dir ./db/migrations ./data/sqlite.db up
 
   gen.templ:
+    desc: Generate go code from templ templates
     cmds:
       - go tool templ generate
 
   gen.db:
+    desc: Generate go code from sql queries with sqlc
     cmds:
       - go tool sqlc generate
 
   dev:
+    desc: Run all watchers and the live-reloading dev server
+    deps:
+      - init
     cmds:
-      - task init
+      # backgrounded with & since these are long-running watchers that must
+      # run alongside dev.go, so they cannot be deps or native task refs
       - task dev.tailwind &
       - task dev.web &
       - task dev.sql &
       - task dev.go
 
   dev.tailwind:
+    desc: Watch and rebuild tailwind css
     dir: ./web
     cmds:
       - bunx tailwindcss -i tailwind.css -o static/tailwind.css --watch --minify --cwd .
 
   dev.web:
+    desc: Watch and rebuild the js bundle, then notify the templ proxy
     dir: ./web
     cmds:
       - |
@@ -67,6 +111,7 @@ tasks:
         bun run build.ts :: go tool templ generate --notify-proxy
 
   dev.sql:
+    desc: Watch sql files and regenerate sqlc code
     dir: ./db
     cmds:
       - |
@@ -76,6 +121,7 @@ tasks:
           go tool sqlc generate
 
   dev.go:
+    desc: Run the server with templ watch mode and live reload
     env:
       TEMPL_DEV_MODE: true
       # Avoids inlining and optimizations, useful for debugging
@@ -92,8 +138,9 @@ tasks:
         --cmd='./scripts/dev-run.sh'
 
   build.docker.run:
+    desc: Build the docker image and run it with local data mounted
     cmds:
-      - task build.docker
+      - task: build.docker
       - |
         docker run --rm \
         -v $(pwd)/data:/app/data \
@@ -101,30 +148,35 @@ tasks:
         backwegotemplate:latest
 
   build.docker:
+    desc: Build the production docker image
     cmds:
       - docker build -t backwegotemplate:latest .
 
   build.go:
+    desc: Build the production binary with embedded assets into ./bin/app
     cmds:
-      - task init.js
+      - task: init.js
       - rm -rf web/static/*
-      - task build.go.assets
+      - task: build.go.assets
       # -s -w strips symbols and debuginfo, -trimpath removes module relative paths
       - go build -ldflags="-s -w" -trimpath -o ./bin/app ./cmd/serve
 
   build.go.assets:
+    desc: Generate templ code and build all static web assets
     deps:
       - gen.templ
       - build.tailwind
       - build.web
 
   build.tailwind:
-    dir: web
+    desc: Build minified tailwind css
+    dir: ./web
     cmds:
       - bunx tailwindcss -i tailwind.css -o static/tailwind.css --minify --cwd .
 
   build.web:
-    dir: web
+    desc: Build the production js bundle
+    dir: ./web
     cmds:
       - ENV=prod bun run build.ts
 
@@ -135,17 +187,28 @@ tasks:
       - check.web
 
   check.go:
-    desc: Go templ generate, vet and compile check
+    desc: Go templ generate, lint and compile check (parallel)
+    deps:
+      # ensures ./bin/golangci-lint is installed at the pinned version
+      - init.go
     cmds:
       - go tool templ generate
+      # no separate `go vet`: golangci-lint's govet linter covers it
       - |
-        go vet ./... & p1=$!
-        go build ./... & p2=$!
+        # scope to our own packages: some npm deps ship go sources into
+        # web/node_modules without a go.mod, so `./...` would include them
+        # and a dep that fails to compile would break the check
+        pkgs=$(go list -f '{{"{{"}}.Dir{{"}}"}}' ./... | grep -v '/node_modules')
+        go build $pkgs & p1=$!
+        ./bin/golangci-lint run $pkgs & p2=$!
         ec=0; wait $p1 || ec=$?; wait $p2 || ec=$?; exit $ec
 
   check.web:
     desc: Prettier, ESLint, TypeScript, and build check (parallel)
     dir: ./web
+    deps:
+      # ensures web/node_modules is installed before the checks run
+      - init.js
     cmds:
       - |
         bunx prettier --check . & p1=$!

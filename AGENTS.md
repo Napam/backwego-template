@@ -5,3 +5,6 @@
   - go code, run `task check.go`
   - web code, run `task check.web`
   - if both, run `task check` to check everything
+
+- Go formatting issues reported by golangci-lint (gofumpt, gci, golines) can
+  be auto-fixed with `./bin/golangci-lint fmt` (installed by `task init.go`)
