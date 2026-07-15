@@ -1,5 +1,12 @@
 version: "3"
 
+env:
+  HOST: "localhost"
+  PORT: "8080"
+  LIVE_RELOAD_PROXY_HOST: "localhost"
+  LIVE_RELOAD_PROXY_PORT: "7331"
+  DB_MIGRATE_ON_START: "true"
+
 tasks:
   init:
     desc: Install all tooling and dependencies (go lint, js deps, git hooks)
@@ -108,7 +115,7 @@ tasks:
         -xdir=static \
         -file='\.ts$' \
         -file='\.css$' \
-        bun run build.ts :: go tool templ generate --notify-proxy
+        bun run build.ts :: go tool templ generate --notify-proxy --proxybind=$LIVE_RELOAD_PROXY_HOST --proxyport=$LIVE_RELOAD_PROXY_PORT
 
   dev.sql:
     desc: Watch sql files and regenerate sqlc code
@@ -124,8 +131,6 @@ tasks:
     desc: Run the server with templ watch mode and live reload
     env:
       TEMPL_DEV_MODE: true
-      # Avoids inlining and optimizations, useful for debugging
-      GOFLAGS: "-gcflags=-N -gcflags=-l"
     cmds:
       - |
         go tool templ generate \
@@ -133,7 +138,9 @@ tasks:
         --watch \
         --watch-pattern='(.+\.go$)|(.+\.templ$)' \
         --path=. \
-        --proxy="http://localhost:8080" \
+        --proxybind=$LIVE_RELOAD_PROXY_HOST \
+        --proxyport=$LIVE_RELOAD_PROXY_PORT \
+        --proxy="http://$HOST:$PORT" \
         --open-browser=false \
         --cmd='./scripts/dev-run.sh'
 
@@ -143,8 +150,11 @@ tasks:
       - task: build.docker
       - |
         docker run --rm \
+        -e HOST=0.0.0.0 \
+        -e PORT=$PORT \
+        -e DB_MIGRATE_ON_START=$DB_MIGRATE_ON_START \
         -v $(pwd)/data:/app/data \
-        -p 8080:8080 \
+        -p $PORT:$PORT \
         backwegotemplate:latest
 
   build.docker:

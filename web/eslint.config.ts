@@ -1,9 +1,6 @@
 import js from '@eslint/js'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
-import json from '@eslint/json'
-import markdown from '@eslint/markdown'
-import css from '@eslint/css'
 // Use the named `configs` export rather than `<default>.configs`. The default
 // is typed as the loose `ESLint.Plugin` interface, where `configs` is optional
 // and unioned with the legacy `.eslintrc` shape, which tsc rejects. The named
@@ -18,10 +15,8 @@ import { defineConfig } from 'eslint/config'
 export default defineConfig([
   // tmp/, static/, dist/ hold generated output and aren't linted.
   // node_modules and dotfiles are ignored by default in flat config.
-  // tailwind.css is a Tailwind v4 manifest: it uses @custom-variant / @theme
-  // at-rules the @eslint/css (CSSTree) parser can't parse; it's not hand-written CSS.
   {
-    ignores: ['tmp/**', 'static/**', 'dist/**', 'tailwind.css'],
+    ignores: ['tmp/**', 'static/**', 'dist/**'],
   },
 
   {
@@ -92,37 +87,6 @@ export default defineConfig([
         Bun: 'readonly',
       },
     },
-  },
-
-  {
-    files: ['**/*.json'],
-    plugins: { json },
-    language: 'json/json',
-    extends: ['json/recommended'],
-  },
-  {
-    files: ['**/*.jsonc'],
-    plugins: { json },
-    language: 'json/jsonc',
-    extends: ['json/recommended'],
-  },
-  {
-    files: ['**/*.json5'],
-    plugins: { json },
-    language: 'json/json5',
-    extends: ['json/recommended'],
-  },
-  {
-    files: ['**/*.md'],
-    plugins: { markdown },
-    language: 'markdown/gfm',
-    extends: ['markdown/recommended'],
-  },
-  {
-    files: ['**/*.css'],
-    plugins: { css },
-    language: 'css/css',
-    extends: ['css/recommended'],
   },
 
   // Disable formatting rules that conflict with Prettier (must be last)

@@ -70,6 +70,14 @@ esc() {
     printf '%s' "$1" | sed 's/[\&|]/\\&/g'
 }
 
+# GNU sed and BSD sed disagree on in-place editing: GNU takes -i with an
+# optional attached suffix, BSD requires the suffix as a separate argument.
+if sed --version > /dev/null 2>&1; then
+    sedi() { sed -i "$@"; }    # GNU
+else
+    sedi() { sed -i '' "$@"; } # BSD/macOS
+fi
+
 M=$(esc "$MODULE")
 P=$(esc "$PKG")
 D=$(esc "$DISPLAY")
@@ -93,24 +101,24 @@ FILES=$(find . -type f \
 while IFS= read -r f; do
     [[ -z "$f" ]] && continue
     # go.mod module line
-    sed -i '' "s|^module backwegotemplate\$|module $M|" "$f"
+    sedi "s|^module backwegotemplate\$|module $M|" "$f"
     # package declarations: 'package backwegotemplate' -> 'package <pkg>'
-    sed -i '' "s|^package backwegotemplate\$|package $P|" "$f"
+    sedi "s|^package backwegotemplate\$|package $P|" "$f"
     # import paths: '"backwegotemplate"' or '"backwegotemplate/..."' -> module
     # The [/"] after backwegotemplate restricts the match to real import paths
     # so a string literal like the localStorage key '"backwegotemplate-theme"'
     # is left for the catch-all below to handle with the package name.
-    sed -i '' "s|\"backwegotemplate\\([/\"]\\)|\"$M\\1|g" "$f"
+    sedi "s|\"backwegotemplate\\([/\"]\\)|\"$M\\1|g" "$f"
     # qualified references: 'backwegotemplate.' -> '<pkg>.'
-    sed -i '' "s|backwegotemplate\\.|$P.|g" "$f"
+    sedi "s|backwegotemplate\\.|$P.|g" "$f"
     # gofumpt module-path in .golangci.yml must be the full module path
-    sed -i '' "s|module-path: backwegotemplate\$|module-path: $M|" "$f"
+    sedi "s|module-path: backwegotemplate\$|module-path: $M|" "$f"
     # everything else (localStorage keys, log strings, docker tags, ...)
-    sed -i '' "s|backwegotemplate|$P|g" "$f"
+    sedi "s|backwegotemplate|$P|g" "$f"
     # display name
-    sed -i '' "s|Backwego Template|$D|g" "$f"
+    sedi "s|Backwego Template|$D|g" "$f"
     # kebab name
-    sed -i '' "s|backwego-template|$K|g" "$f"
+    sedi "s|backwego-template|$K|g" "$f"
 done <<< "$FILES"
 
 # Regenerate templ + web bundle so build artifacts match the new name.

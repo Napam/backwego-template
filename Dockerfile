@@ -34,5 +34,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 
 WORKDIR /app
 
+# HOST=0.0.0.0 (instead of Taskfile's localhost) so the host can reach the container
+ENV HOST=0.0.0.0 PORT=8080 DB_MIGRATE_ON_START=true
+
 ENTRYPOINT ["bin/app"]
-CMD [""]

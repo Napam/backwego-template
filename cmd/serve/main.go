@@ -10,6 +10,7 @@ import (
 
 	"backwegotemplate"
 	"backwegotemplate/db"
+	"backwegotemplate/lib/env"
 	"backwegotemplate/lib/generated/sqlc"
 	"backwegotemplate/lib/logging"
 	"backwegotemplate/web/root"
@@ -42,9 +43,17 @@ func main() {
 		}
 	}()
 
-	_, err = db.RunMigrations(context.Background(), backwegotemplate.MigrationsFS, dbConn, logger)
-	if err != nil {
-		logger.Error("Could not run migrations", slog.Any("error", err))
+	if env.Vars.DbMigrateOnStart {
+		_, err = db.RunMigrations(
+			context.Background(),
+			backwegotemplate.MigrationsFS,
+			dbConn,
+			logger,
+		)
+		if err != nil {
+			logger.Error("Could not run migrations", slog.Any("error", err))
+			os.Exit(1)
+		}
 	}
 
 	queries := sqlc.New(dbConn)
@@ -86,15 +95,17 @@ func main() {
 		logger.Info("Deleted user", slog.Int64("id", id))
 	})
 
-	logger.Info(
-		"Server running",
-		slog.String(
+	logAttrs := []slog.Attr{
+		slog.String("address", env.Vars.Host+":"+env.Vars.Port),
+	}
+	if env.Vars.LiveReloadHost != "" && env.Vars.LiveReloadPort != "" {
+		logAttrs = append(logAttrs, slog.String(
 			"live_reload_address",
-			"localhost:7331 (you have to use 'task dev' for this to work)",
-		),
-		slog.String("address", "localhost:8080"),
-	)
-	err = http.ListenAndServe(":8080", router)
+			env.Vars.LiveReloadHost+":"+env.Vars.LiveReloadPort+" (you have to use 'task dev' for this to work)",
+		))
+	}
+	logger.LogAttrs(context.Background(), slog.LevelInfo, "Server running", logAttrs...)
+	err = http.ListenAndServe(env.Vars.Host+":"+env.Vars.Port, router)
 	if err != nil {
 		logger.Error("Server did not exit cleanly", slog.Any("error", err))
 		os.Exit(1)

@@ -28,7 +28,7 @@ kill_old() {
 
 # Build first so the running server keeps serving while we compile.
 # Color compiler errors red for visibility.
-if ! go build -tags=noembed -o "$BIN" ./cmd/serve 2> >(sed -E "/\.go:/s/.*/${RED}&${RESET}/" >&2); then
+if ! go build -tags=noembed -gcflags="-N -l" -o "$BIN" ./cmd/serve 2> >(sed -E "/\.go:/s/.*/${RED}&${RESET}/" >&2); then
     # Kill old server on failure so stale binary doesn't mislead.
     kill_old
     echo "${RED}build failed — server stopped${RESET}" >&2
