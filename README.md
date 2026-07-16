@@ -18,8 +18,11 @@ Requirements:
 Using this as a template for your own project? Run the rename wizard first,
 see [Renaming](#renaming).
 
-1. Grab the repo. The easiest way is GitHub's "Use this template" button
-   (creates a fresh repo with no history). Or you can do it via git clone:
+1. Grab the repo via GitHub's "Use this template" button
+   (gives you a fresh repo with no history).
+
+   <details>
+   <summary>Or you can git clone and reset the git state</summary>
 
    ```sh
    git clone --depth 1 https://github.com/Napam/backwego-template my-app
@@ -27,6 +30,8 @@ see [Renaming](#renaming).
    rm -rf .git
    git init && git add -A && git commit -m "initial"
    ```
+
+   </details>
 
 2. In the repo root, run `task dev`. This sets up the git pre-push hook,
    installs the pinned golangci-lint into `bin/`, and starts the dev server
@@ -70,8 +75,18 @@ needed.
 
 Features:
 
-- Embedded web assets in the binary (place files in `web/static`)
-- Hash-based asset caching for cache busting
+- All generated web assets (`build.ts` bundles `lib/**/*.ts` into
+  `web/static/bundle.js`, tailwindcss outputs `web/static/tailwind.css`) are
+  embedded into the binary via `//go:embed web/static/*` in production builds.
+  The entire `web/static/` directory is gitignored.
+- Two build modes via Go build tags: production (`task build.go`) embeds all
+  web assets and migrations into the binary. Dev mode (`task dev` with
+  `-tags=noembed`) serves `web/static/` directly from disk with `Cache-Control: no-store`,
+  so changes are visible on reload without a rebuild.
+- Hash-based asset caching: the `hashfs` library (in `lib/hashfs`) renames
+  files with a content hash (e.g. `bundle.abc123.js`). Use the `StaticRootPath`
+  helper in templ to reference assets — it resolves to the hashed path in
+  production and the plain path in dev.
 - Web components with shadow DOM and shared TailwindCSS (and working dark mode
   toggling)
 - Live reload for Go, templ, TypeScript, and TailwindCSS just by using `task dev`
@@ -88,6 +103,19 @@ Tech stack:
 - [goose](https://github.com/pressly/goose) - database migrations
 - [sqlc](https://sqlc.dev/) - type-safe database queries
 - [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) - pure Go SQLite driver
+
+## Database
+
+Migrations live in `db/migrations/` (goose format), queries in `db/queries/*.sql`
+(sqlc format). The workflow for schema changes:
+
+1. Add a migration file to `db/migrations/` (e.g. `20240101120000_add_posts.sql`)
+2. `task db.migrate` — applies it to your local `data/sqlite.db`
+3. Add or update queries in `db/queries/`
+4. `task gen.db` — regenerates type-safe Go code into `lib/generated/sqlc/`
+
+The sqlc config is at `db/sqlc.yaml`. Migrations also run automatically on
+server startup (disable via `DB_MIGRATE_ON_START=false`).
 
 ## Linting and checks
 
@@ -135,7 +163,9 @@ From here you may want to:
 │
 ├── files_embed.go      embeds web/static for production builds
 │
-├── files_noembed.go    empty embed stub for dev mode, noembed tag
+├── files_noembed.go    serves web/static from disk in dev mode, noembed tag
+│
+├── .hooks              git hooks, symlinked by task init
 │
 ├── lib                 shared go libraries
 │
@@ -151,7 +181,7 @@ From here you may want to:
     ├── build.ts        script to build web assets, outputs to web/static
     ├── lib             shared typescript libraries
     ├── root            templ root page
-    └── static          this dir will be embedded into go binary
+    └── static          build artifacts (bundle.js, tailwind.css), gitignored
 ```
 
 ## Who this is for
