@@ -121,11 +121,12 @@ while IFS= read -r f; do
     sedi "s|backwego-template|$K|g" "$f"
 done <<< "$FILES"
 
-# Regenerate templ + web bundle so build artifacts match the new name.
+# Regenerate build artifacts, then format and check.
 echo ""
-echo "Regenerating build artifacts..."
+echo "Cleaning caches, regenerating, formatting, and checking..."
+task clean
+task init
 ( cd web && command -v bun > /dev/null 2>&1 && bun run build.ts) || echo "  (skipped web bundle: bun not available)"
 ( go tool templ generate > /dev/null 2>&1) || echo "  (skipped templ regen: templ tool unavailable)"
-
-echo ""
-echo "Done! Verify with: task check"
+task fix
+task check

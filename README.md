@@ -15,9 +15,6 @@ Requirements:
 
 ## Quickstart
 
-Using this as a template for your own project? Run the rename wizard first,
-see [Renaming](#renaming).
-
 1. Grab the repo via GitHub's "Use this template" button
    (gives you a fresh repo with no history).
 
@@ -33,13 +30,18 @@ see [Renaming](#renaming).
 
    </details>
 
-2. In the repo root, run `task dev`. This sets up the git pre-push hook,
+2. Using this as a template for your own project? Run the rename wizard first,
+   see [Renaming](#renaming).
+
+3. In the repo root, run `task dev`. This sets up the git pre-push hook,
    installs the pinned golangci-lint into `bin/`, and starts the dev server
    with live reload.
-3. Open the site at `localhost:7331` (the live reload proxy; configure via
+
+4. Open the site at `localhost:7331` (the live reload proxy; configure via
    `LIVE_RELOAD_PROXY_PORT` in `Taskfile.yml`). The app itself listens on
    `PORT` (default `8080`).
-4. Start making changes: the application entrypoint is `cmd/serve/main.go` and
+
+5. Start making changes: the application entrypoint is `cmd/serve/main.go` and
    the frontend root page is `web/root/root.templ`.
 
 For production build: `task build.go` (output in `bin/app`).

@@ -241,3 +241,34 @@ tasks:
         wait $p3 || ec=$?
         wait $p4 || ec=$?
         exit $ec
+
+  fix:
+    desc: Auto-fix all formatting and linting (Go + JS/TS)
+    deps:
+      - fix.go
+      - fix.web
+
+  fix.go:
+    desc: Auto-fix Go linting and formatting issues
+    deps:
+      - init.go
+    cmds:
+      - ./bin/golangci-lint run --fix
+
+  fix.web:
+    desc: Format and lint-fix JS/TS code (prettier, eslint --fix)
+    dir: ./web
+    deps:
+      - init.js
+    cmds:
+      - bunx prettier --write .
+      - bunx eslint --fix .
+
+  clean:
+    desc: Wipe build artifacts and local caches
+    cmds:
+      - ./bin/golangci-lint cache clean 2>/dev/null || true
+      - rm -rf tmp/*
+      - rm -rf web/node_modules
+      - rm -rf web/static/*
+      - rm -f bin/app bin/dev-app
