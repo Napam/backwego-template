@@ -107,6 +107,11 @@ tasks:
     desc: Watch and rebuild the js bundle, then notify the templ proxy
     dir: ./web
     cmds:
+      # wgo runs its command chain once at startup, including --notify-proxy.
+      # dev.web and dev.go start concurrently, so wait for the templ proxy
+      # (started by dev.go) to be listening first, otherwise that first notify
+      # fires too early and logs a cosmetic connection error.
+      - until nc -z "$LIVE_RELOAD_PROXY_HOST" "$LIVE_RELOAD_PROXY_PORT" 2>/dev/null; do sleep 0.1; done
       - |
         go tool wgo \
         -debounce=256ms \
