@@ -2,7 +2,7 @@
 
 Opinionated template for SSR-first Go apps: templ for HTML, tailwindcss for
 styling, Lit for web components, sqlite for data, goose for migrations.
-Everything compiles into a single binary.
+Everything compiles into a single binary, all with live reload.
 
 This template is a base for hypermedia driven applications, and fits very well
 with frameworks such as [htmx](https://htmx.org/).
@@ -72,8 +72,6 @@ project name across all source files.
 Server renders HTML with templ. Forms POST to the server, which processes and
 redirects back. No client-side JS required — web components enhance where
 needed.
-
-Features:
 
 - All generated web assets (`build.ts` bundles `lib/**/*.ts` into
   `web/static/bundle.js`, tailwindcss outputs `web/static/tailwind.css`) are
