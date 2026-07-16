@@ -2,6 +2,9 @@ import { Glob } from 'bun'
 import fs from 'fs'
 
 const isProdBuild = process.env.ENV === 'prod'
+// Overridable so `task check.web` can build to a scratch dir instead of
+// clobbering static/ while a dev session or production build is running.
+const outdir = process.env.OUTDIR ?? 'static'
 
 /**
  * Finds all .ts files in lib/ and bundles them into a single file.
@@ -11,7 +14,7 @@ const isProdBuild = process.env.ENV === 'prod'
 async function bundleLib() {
   const glob = new Glob('lib/**/*.ts')
   const libFiles = Array.from(glob.scanSync('.'))
-  const outfile = 'static/bundle.js'
+  const outfile = `${outdir}/bundle.js`
 
   const start = Date.now()
 
@@ -23,7 +26,7 @@ async function bundleLib() {
 
   const buildResult = await Bun.build({
     entrypoints: [tmpEntry],
-    outdir: 'static',
+    outdir,
     naming: 'bundle.[ext]',
     minify: isProdBuild,
     sourcemap: isProdBuild ? 'none' : 'linked',
