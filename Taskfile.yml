@@ -219,9 +219,14 @@ tasks:
       - go tool templ generate
       - task gen.db
       - |
-        go build ./... & p1=$!
-        ./bin/golangci-lint run ./... & p2=$!
-        ec=0; wait $p1 || ec=$?; wait $p2 || ec=$?; exit $ec
+        go tool templ fmt -fail . & p1=$!
+        go build ./... & p2=$!
+        ./bin/golangci-lint run ./... & p3=$!
+        ec=0
+        wait $p1 || ec=$?
+        wait $p2 || ec=$?
+        wait $p3 || ec=$?
+        exit $ec
 
   check.web:
     desc: Prettier, ESLint, TypeScript, and build check (parallel)
@@ -253,6 +258,7 @@ tasks:
     deps:
       - init.go
     cmds:
+      - go tool templ fmt .
       - ./bin/golangci-lint run --fix
 
   fix.web:
