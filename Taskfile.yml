@@ -88,14 +88,16 @@ tasks:
     deps:
       - init
     cmds:
-      # refuse to start if orphaned watchers from a previous session hold the proxy port
+      # refuse to start if orphaned processes from a previous session hold the ports
       - |
-        if nc -z "$LIVE_RELOAD_PROXY_HOST" "$LIVE_RELOAD_PROXY_PORT" 2>/dev/null; then
-          echo "$LIVE_RELOAD_PROXY_HOST:$LIVE_RELOAD_PROXY_PORT is already in use — another dev session or orphaned watchers?" >&2
-          exit 1
-        fi
-      # Ctrl+C SIGINTs the whole process group; templ tears down the dev-run.sh server
-      - task --parallel dev.tailwind dev.web dev.sql dev.go
+        for hostport in "$LIVE_RELOAD_PROXY_HOST:$LIVE_RELOAD_PROXY_PORT" "$HOST:$PORT"; do
+          if nc -z "${hostport%%:*}" "${hostport##*:}" 2>/dev/null; then
+            echo "$hostport is already in use — another dev session or orphaned processes?" >&2
+            exit 1
+          fi
+        done
+      # Ctrl+C SIGINTs the whole process group; wgo tears down the dev server
+      - task --parallel dev.tailwind dev.web dev.sql dev.go dev.server
 
   dev.tailwind:
     desc: Watch and rebuild tailwind css
@@ -143,21 +145,56 @@ tasks:
         ignore_error: true
 
   dev.go:
-    desc: Run the server with templ watch mode and live reload
+    desc: Watch templ files, regenerate, and run the live reload proxy
     env:
       TEMPL_DEV_MODE: true
     cmds:
-      - |
-        go tool templ generate \
-        --log-level=info \
-        --watch \
-        --watch-pattern='(.+\.go$)|(.+\.templ$)' \
-        --path=. \
-        --proxybind=$LIVE_RELOAD_PROXY_HOST \
-        --proxyport=$LIVE_RELOAD_PROXY_PORT \
-        --proxy="http://$HOST:$PORT" \
-        --open-browser=false \
-        --cmd='./scripts/dev-run.sh'
+      # only .templ files: text-only changes hot-reload via _templ.txt without
+      # a server restart; structural changes rewrite _templ.go, which
+      # dev.server picks up and rebuilds. go.mod is included because templ
+      # starts its proxy lazily on the first watch event, and the initial
+      # walk of a watched non-templ file provides exactly one such event.
+      - cmd: |
+          go tool templ generate \
+          --log-level=info \
+          --watch \
+          --watch-pattern='(.+\.templ$)|(.+_templ\.txt$)|(.*go\.mod$)' \
+          --path=. \
+          --proxybind=$LIVE_RELOAD_PROXY_HOST \
+          --proxyport=$LIVE_RELOAD_PROXY_PORT \
+          --proxy="http://$HOST:$PORT" \
+          --open-browser=false \
+          --cmd='cp go.mod tmp/restart.trigger'
+        ignore_error: true
+
+  dev.server:
+    desc: Watch go files, rebuild and restart the dev server
+    env:
+      # the server binary loads templ strings from _templ.txt files at
+      # runtime; these tell it where (templ sets the same values when it
+      # spawns the server itself via --cmd)
+      TEMPL_DEV_MODE: true
+      TEMPL_DEV_MODE_WATCH_ROOT:
+        sh: pwd -P
+    cmds:
+      # wgo serializes and debounces restarts, so rapid change bursts (e.g.
+      # from AI agents) coalesce into one clean rebuild + restart.
+      # _templ.go is excluded because templ rewrites it with identical content
+      # on text-only edits; structural changes are signaled by templ instead,
+      # via --cmd writing tmp/restart.trigger (only fired on needsRestart;
+      # must be a content write, wgo ignores mtime-only touches)
+      - cmd: |
+          go tool wgo \
+            -debounce=512ms \
+            -xdir=web/node_modules \
+            -xdir=web/static \
+            -xdir=bin \
+            -xdir=data \
+            -file='\.go$' \
+            -xfile='_templ\.go$' \
+            -file='tmp/restart\.trigger$' \
+            ./scripts/dev-run.sh
+        ignore_error: true
 
   build.docker.run:
     desc: Build the docker image and run it with local data mounted
