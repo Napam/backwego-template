@@ -10,13 +10,13 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "strict": true,
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": ["./*"],
       "@web-components/*": ["./lib/web-components/*"],
       "@lib/*": ["./lib/*"],
       "@utils/*": ["./lib/utils/*"]
-    }
+    },
+    "plugins": [{ "name": "ts-lit-plugin", "strict": true }]
   },
   "exclude": ["tmp", "static", "node_modules"]
 }

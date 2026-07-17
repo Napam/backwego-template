@@ -9,3 +9,5 @@
   - web code, run `task check.web`
   - if both, run `task check` to check everything
   - to auto-fix formatting/linting, run `task fix` (or `task fix.go` / `task fix.web`)
+
+- In `web/` avoid having inline svgs, always make icons at `web/lib/web-components/icons`
