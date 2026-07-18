@@ -164,7 +164,7 @@ tasks:
           --proxyport=$LIVE_RELOAD_PROXY_PORT \
           --proxy="http://$HOST:$PORT" \
           --open-browser=false \
-          --cmd='cp go.mod tmp/restart.trigger'
+          --cmd='./scripts/dev-restart.sh'
         ignore_error: true
 
   dev.server:
@@ -181,8 +181,8 @@ tasks:
       # from AI agents) coalesce into one clean rebuild + restart.
       # _templ.go is excluded because templ rewrites it with identical content
       # on text-only edits; structural changes are signaled by templ instead,
-      # via --cmd writing tmp/restart.trigger (only fired on needsRestart;
-      # must be a content write, wgo ignores mtime-only touches)
+      # via --cmd (dev-restart.sh) writing tmp/restart.trigger (only fired
+      # when templ decides a restart is needed)
       - cmd: |
           go tool wgo \
             -debounce=512ms \

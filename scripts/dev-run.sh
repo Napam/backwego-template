@@ -9,6 +9,14 @@ APP_PORT=${PORT:-8080}
 RED=$'\033[31m'
 RESET=$'\033[0m'
 
+# Wait (max ~10s) for the templ proxy: at session boot templ is still
+# rewriting _templ.go files into dev mode, and building against half-written
+# files fails. The proxy only comes up once that initial generation is done.
+for _ in {1..100}; do
+    nc -z "${LIVE_RELOAD_PROXY_HOST:-localhost}" "${LIVE_RELOAD_PROXY_PORT:-7331}" 2> /dev/null && break
+    sleep 0.1
+done
+
 # Piping to sed instead of process substitution (2> >(...)) avoids orphaned
 # sed processes hanging around after the script exits
 if ! go build -tags=noembed -gcflags="-N -l" -o "$BIN" ./cmd/serve 2>&1 | sed -E "/\.go:/s/.*/${RED}&${RESET}/" >&2; then
