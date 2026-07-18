@@ -149,11 +149,10 @@ tasks:
     env:
       TEMPL_DEV_MODE: true
     cmds:
-      # only .templ files: text-only changes hot-reload via _templ.txt without
-      # a server restart; structural changes rewrite _templ.go, which
-      # dev.server picks up and rebuilds. go.mod is included because templ
-      # starts its proxy lazily on the first watch event, and the initial
-      # walk of a watched non-templ file provides exactly one such event.
+      # templ watches .templ files and runs the live-reload proxy.
+      # text-only edits hot-swap via _templ.txt (no server restart);
+      # recompiles (structural changes) run --cmd to trigger a wgo rebuild.
+      # go.mod is watched to kick-start templ's lazily booted proxy.
       - cmd: |
           go tool templ generate \
           --log-level=info \
@@ -164,25 +163,22 @@ tasks:
           --proxyport=$LIVE_RELOAD_PROXY_PORT \
           --proxy="http://$HOST:$PORT" \
           --open-browser=false \
-          --cmd='./scripts/dev-restart.sh'
+          --cmd='./scripts/dev-run.sh restart'
         ignore_error: true
 
   dev.server:
     desc: Watch go files, rebuild and restart the dev server
     env:
-      # the server binary loads templ strings from _templ.txt files at
-      # runtime; these tell it where (templ sets the same values when it
-      # spawns the server itself via --cmd)
+      # tell the running server to load templ strings from the _templ.txt
+      # files on disk instead of the compiled-in versions, so text-only
+      # edits hot-swap without a rebuild
       TEMPL_DEV_MODE: true
       TEMPL_DEV_MODE_WATCH_ROOT:
         sh: pwd -P
     cmds:
-      # wgo serializes and debounces restarts, so rapid change bursts (e.g.
-      # from AI agents) coalesce into one clean rebuild + restart.
-      # _templ.go is excluded because templ rewrites it with identical content
-      # on text-only edits; structural changes are signaled by templ instead,
-      # via --cmd (dev-restart.sh) writing tmp/restart.trigger (only fired
-      # when templ decides a restart is needed)
+      # wgo owns the server process lifecycle. _templ.go is excluded (templ
+      # rewrites it even on text-only edits); structural recompiles arrive
+      # via tmp/restart.trigger instead.
       - cmd: |
           go tool wgo \
             -debounce=512ms \

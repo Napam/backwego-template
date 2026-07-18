@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Invoked by wgo (dev.server): build, then run the server in the foreground so
-# wgo can kill and restart the whole chain cleanly on the next change.
+# build + run the dev server.  called two ways:
+#   wgo (dev.server)            → build, then exec server in foreground
+#   templ --cmd dev-run.sh      → structural change: kill old server, signal
+#   restart                       wgo to rebuild, then EXIT (wgo does the build)
 set -o pipefail
 
 BIN="./bin/dev-app"
@@ -9,9 +11,19 @@ APP_PORT=${PORT:-8080}
 RED=$'\033[31m'
 RESET=$'\033[0m'
 
-# Wait (max ~10s) for the templ proxy: at session boot templ is still
-# rewriting _templ.go files into dev mode, and building against half-written
-# files fails. The proxy only comes up once that initial generation is done.
+# structural change: kill old server so it can't render broken output with the
+# freshly rewritten _templ.txt, then signal wgo to rebuild. templ's proxy
+# retries the dead upstream with backoff, so the browser blocks until the new
+# server is up. exit immediately — wgo owns the actual build+run.
+if [[ "${1:-}" == "restart" ]]; then
+    pkill -TERM -x -f './bin/dev-app' 2> /dev/null
+    cp go.mod tmp/restart.trigger
+    exit 0
+fi
+
+# wait (max ~10s) for the templ proxy at boot, when templ is still rewriting
+# _templ.go files into dev mode; building against half-written files fails.
+# on non-boot restarts the proxy is already up so this returns instantly.
 for _ in {1..100}; do
     nc -z "${LIVE_RELOAD_PROXY_HOST:-localhost}" "${LIVE_RELOAD_PROXY_PORT:-7331}" 2> /dev/null && break
     sleep 0.1
