@@ -10,30 +10,55 @@ and the `Send` method has not changed since the original hot-reload commits
 
 ---
 
-## 1. Root cause (recap)
+## 0. Scope: which fix solves what
 
-`Send` holds the mutex only long enough to *spawn* one goroutine per client;
-the actual `f <- event` runs **outside the mutex**, in a detached goroutine,
-on an **unbuffered** channel. The disconnect cleanup takes the mutex, deletes the id,
-and `close(events)`. Nothing coordinates a still-parked send goroutine with
-that close → `panic: send on closed channel`. Because the panicking goroutine
-is spawned by `Send` (not an `http.Server` handler goroutine), `net/http`'s
-per-connection `recover` does not catch it, so the whole templ process dies.
+"Blank page at 7331" has **two independent causes** (findings §1 vs §3), and
+the fixes below are not interchangeable:
 
-The precise trigger is *"a send goroutine still blocked on the send at the
-instant `close` runs."* A single spaced-out event is consumed instantly by the
-parked reader, so it never lingers — which is why one-by-one edits are safe and
-bursts (≥2 near-simultaneous sends) crash it.
+| Fix                                           | What it solves                                                                                                           | Needed to stop the crash?                                                                          |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| **§1 — abandonable send (the essential fix)** | templ panics `send on closed channel` → whole process dies → proxy refuses connections until `task dev` is restarted     | **Yes. Necessary and sufficient.**                                                                 |
+| §2 — retry budget                             | Browser requests _hang_ (blank page + spinner, up to ~11 min) during server-down windows — happens with **zero crashes** | No. Optional UX hardening for a separate flaw in a separate file (`proxy.go`, not `sse/server.go`) |
+| §3 — restart-loop supervision                 | Same crash as §1, but only self-heals it (~1 s) instead of fixing it                                                     | No. This is the **alternative** to §1 for when you can't patch templ — not an addition to it       |
+
+- If you can patch templ (fork / `replace` / upstream PR merged): **do §1,
+  skip §3**; add §2 only if the hang windows bother you.
+- If you're pinned to upstream releases: **§3 is the stand-in** until the §1
+  PR merges; §2 remains independently useful.
+- Neither direction substitutes: §1 does nothing for hang windows, and
+  neither §2 nor §3 prevents the panic.
 
 ---
 
-## 2. The fix
+## 1. The essential fix: make `Send` abandonable
+
+This is the fix for the reported issue. It eliminates the panic class **by
+construction**: with no `close` on the events channel, "send on closed
+channel" cannot happen, regardless of timing.
+
+### 1.1 Root cause (recap)
+
+`Send` holds the mutex only long enough to _spawn_ one goroutine per client;
+the actual `f <- event` runs **outside the mutex**, in a detached goroutine,
+on an **unbuffered** channel. The disconnect cleanup takes the mutex, deletes
+the id, and `close(events)`. Nothing coordinates a still-parked send
+goroutine with that close → `panic: send on closed channel`. Because the
+panicking goroutine is spawned by `Send` (not an `http.Server` handler
+goroutine), `net/http`'s per-connection `recover` does not catch it, so the
+whole templ process dies.
+
+The precise trigger is _"a send goroutine still blocked on the send at the
+instant `close` runs."_ A single spaced-out event is consumed instantly by
+the parked reader, so it never lingers — which is why one-by-one edits are
+safe and bursts (≥2 near-simultaneous sends) crash it.
+
+### 1.2 The patch
 
 Give each connection a `done` signal, `select` on it in the send goroutine,
 and **never close the events channel** (let GC reclaim it). ~15 lines, no
 behavioral downside.
 
-### 2.1 Track a `done` channel per client
+**Track a `done` channel per client**
 
 ```go
 type client struct {
@@ -55,7 +80,7 @@ func New() *Handler {
 }
 ```
 
-### 2.2 Make the send abandonable
+**Make the send abandonable**
 
 ```go
 func (s *Handler) Send(eventType string, data string) {
@@ -73,7 +98,7 @@ func (s *Handler) Send(eventType string, data string) {
 }
 ```
 
-### 2.3 Close `done` on disconnect — but not `events`
+**Close `done` on disconnect — but not `events`**
 
 ```go
 	id := atomic.AddInt64(&s.counter, 1)
@@ -92,13 +117,11 @@ func (s *Handler) Send(eventType string, data string) {
 
 The read loop is unchanged — `case e := <-events:` still works.
 
----
-
-## 3. Why this is correct
+### 1.3 Why this is correct
 
 - **No send-on-closed panic** — `events` is never closed, so the send can't
   panic. It's just an unreferenced channel after the handler returns; GC
-  reclaims it. Note the original `close(events)` was *functionally dead*: it
+  reclaims it. Note the original `close(events)` was _functionally dead_: it
   runs in the deferred cleanup, after the read loop has already exited, so no
   reader ever observes it — it existed only as a hazard for parked senders.
 - **No leaked/blocked send goroutines** — the old code left a parked
@@ -120,9 +143,7 @@ Equivalent minimal variant, if upstream prefers: store the request's
 goroutine instead of a dedicated `done` channel — same guarantees. The
 `done` channel is used here because the close is explicit and exactly-once.
 
----
-
-## 4. Regression test
+### 1.4 Regression test
 
 `bug-findings-appendix/sse-repro/main.go` is a self-contained reproduction: it
 starts an `httptest` server, connects a client that reads one event and
@@ -137,14 +158,19 @@ would panic (run with `-race`).
 
 ---
 
-## 5. Secondary fix: retry budget (optional, independent)
+## 2. Optional: retry budget (fixes request hangs — _not_ the crash)
 
-Separate flaw (`templ-proxy-bug-findings.md` §3.1): the proxy's RoundTripper
-retries a down upstream for `20 × (100ms × 1.5^n) ≈ 11 minutes` before
-returning a bodyless `502`, so browser requests hang (blank page) through every
-server-down window. `time.Sleep` there is not context-aware, so aborted
-requests keep a goroutine sleeping the full schedule; and a *legitimate* `502`
-from the backend is retried the same way.
+Separate flaw in a separate file (`templ-proxy-bug-findings.md` §3.1): the
+proxy's RoundTripper retries a down upstream for
+`20 × (100ms × 1.5^n) ≈ 11 minutes` before returning a bodyless `502`, so
+browser requests hang (blank page + spinner) through every server-down
+window. `time.Sleep` there is not context-aware, so aborted requests keep a
+goroutine sleeping the full schedule; and a _legitimate_ `502` from the
+backend is retried the same way.
+
+This section exists because the symptom (blank page at 7331) is
+indistinguishable from the §1 crash — but nothing here affects the panic,
+and the §1 fix does not depend on anything here. Ship separately.
 
 Fix in `cmd/templ/generatecmd/proxy/proxy.go`:
 
@@ -175,32 +201,36 @@ Fix in `cmd/templ/generatecmd/proxy/proxy.go`:
 hang that eventually serves the page" for "fast empty-502 blank page" in
 every server-down window longer than the retry budget — and server restarts
 routinely exceed ~1.3 s. Because reloads fired while the browser has no SSE
-connection are lost (findings §3.3), this can *increase* stuck-blank end
+connection are lost (findings §3.3), this can _increase_ stuck-blank end
 states unless paired with a proxy `ErrorHandler` that serves a small
-auto-reloading error page instead of an empty 502. Independent of the panic
-fix; ship separately.
+auto-reloading error page instead of an empty 502.
 
 ---
 
-## 6. If not patching templ: local workaround
+## 3. If you can't patch templ: restart-loop workaround (alternative to §1)
 
-No upstream change: supervise templ in a restart loop in `dev.go`
-(`until go tool templ generate ...; do sleep 1; done`) so a panic self-heals in
-~1s. This does **not** fix the bug — it just makes it nearly invisible. The
-§2 code change is the real fix.
+Only relevant when §1 is not an option (pinned to an upstream release that
+still has the bug). Supervise templ in a restart loop in `dev.go`
+(`until go tool templ generate ...; do sleep 1; done`) so a panic self-heals
+in ~1 s.
+
+This does **not** fix the bug — it just makes it nearly invisible, and it is
+the **alternative** to §1, not a complement: once §1 is applied, a restart
+loop adds nothing for this issue (residual value: insurance against other,
+hypothetical templ panics). Don't do both for this bug.
 
 ---
 
-## 7. Upstream submission notes
+## 4. Upstream submission notes
 
-- No issue exists for *this* panic site. Searching "send on closed channel"
+- No issue exists for _this_ panic site. Searching "send on closed channel"
   does find [#505](https://github.com/a-h/templ/issues/505) — same panic
   string, but a different code path (`generatecmd/cmd.go` error handler,
   fixed Feb 2024). Cite it in the new issue: preempts a duplicate close and
   shows this bug class has bitten the codebase before.
 - [#842 "Proxy not ready, retrying infinitely"](https://github.com/a-h/templ/issues/842)
-  is about the *startup readiness* retry loop (waiting for `:7331` to come
-  up), not the §5 RoundTripper retries; it was closed same-day by its author.
+  is about the _startup readiness_ retry loop (waiting for `:7331` to come
+  up), not the §2 RoundTripper retries; it was closed same-day by its author.
 - File a new issue with the `bug-findings-appendix/sse-repro` repro and the
-  panic stack (`server.go:37`), then open a PR with the §2 patch + a
+  panic stack (`server.go:37`), then open a PR with the §1 patch + a
   `-race` regression test.

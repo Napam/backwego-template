@@ -10,18 +10,18 @@ macOS arm64, branch `alternative-dev-run-sh`.
 **TL;DR**
 
 1. **Primary bug (confirmed, upstream, unfixed):** a race in templ's SSE
-   handler makes the *entire templ process* crash with
+   handler makes the _entire templ process_ crash with
    `panic: send on closed channel`. The proxy lives inside that process, so
    the proxy dies with it. Nothing restarts it → `localhost:7331` refuses
    connections → blank/error page in the browser, permanently, until
    `task dev` is restarted.
 2. **Secondary design flaws in templ's proxy** make the dev experience
    "weird" even when no crash happens: an ~11-minute retry budget means
-   browser requests *hang* (blank page + spinner) through every server-down
+   browser requests _hang_ (blank page + spinner) through every server-down
    window instead of failing fast, and reload events fired while the browser
    is mid-page-load are silently lost (stale final page possible).
-3. The debouncing on this branch reduces event *rate* but the crash needs
-   event *coincidence* (≥2 overlapping "reload" sends while a browser tab
+3. The debouncing on this branch reduces event _rate_ but the crash needs
+   event _coincidence_ (≥2 overlapping "reload" sends while a browser tab
    disconnects). With three independent notify sources, bursts still
    eventually produce that coincidence.
 
@@ -82,16 +82,26 @@ templ_reloadSrc.onmessage = (event) => {
 window.onbeforeunload = () => window.templ_reloadSrc.close();
 ```
 
-Sequence that triggers the panic:
+Sequence that triggers the panic (two near-simultaneous `Send` calls, one
+browser tab):
 
-1. A "reload" event is sent to the browser tab.
-2. The tab receives it → `window.location.reload()` → `onbeforeunload`
-   closes the EventSource → the SSE connection's request context is
-   canceled → the `ServeHTTP` loop exits → the deferred cleanup runs
-   `close(events)`.
-3. If a *second* `Send` goroutine (spawned in step 1 or by a concurrent
-   `Send`) is still blocked on `f <- event` at that moment, it panics:
-   `send on closed channel`.
+| Step | What happens | State of goroutine 2 |
+|------|-------------|---------------------|
+| 1 | **Send #1** fires — spawns goroutine 1, which sends on the unbuffered `events` channel | — |
+| 2 | Read loop receives the event, writes to response, flushes to browser | — |
+| 3 | Browser receives `"reload"` → `window.location.reload()` → `onbeforeunload` → `EventSource.close()` → connection drops → request context cancelled | — |
+| 4 | **Send #2** fires — spawns goroutine 2, which tries to send on the same `events` channel | **Blocked** — read loop is about to exit, no receiver |
+| 5 | Read loop picks `<-r.Context().Done()` → exits → deferred cleanup runs → `close(events)` | **Still blocked** on `f <- event{...}` |
+| 6 | `close(events)` hits while goroutine 2 is sending on it → **`panic: send on closed channel`** | Dead |
+
+Why two sends are needed: one send is consumed instantly by the parked
+reader (step 2), so it finishes before the cleanup. The second send has no
+receiver (the loop already exited) and is still parked when the channel
+closes.
+
+The race exists because `Send` spawns the goroutine and immediately
+releases the mutex — it doesn't wait for the send to complete. The cleanup
+closes the channel with no coordination with in-flight send goroutines.
 
 The race needs **≥2 pending send goroutines at the moment a tab
 disconnects**. A single, spaced-out reload event is always received
@@ -118,11 +128,11 @@ watchers keep running as if nothing happened.
 This dev setup has **three independent "reload" notify sources**, each of
 which ends in `sse.Send("message", "reload")`:
 
-| Source | Trigger | Path |
-| --- | --- | --- |
-| templ itself | every grouped post-generation event with `needsBrowserReload` | `handlePostGenerationEvents` → `p.SendSSE("message", "reload")` |
-| `dev.web` (wgo) | every js/css rebuild | `templ generate --notify-proxy` → POST `/_templ/reload/events` |
-| `dev-run.sh` | every server restart | waits for `:8080`, then `--notify-proxy` → POST |
+| Source          | Trigger                                                       | Path                                                            |
+| --------------- | ------------------------------------------------------------- | --------------------------------------------------------------- |
+| templ itself    | every grouped post-generation event with `needsBrowserReload` | `handlePostGenerationEvents` → `p.SendSSE("message", "reload")` |
+| `dev.web` (wgo) | every js/css rebuild                                          | `templ generate --notify-proxy` → POST `/_templ/reload/events`  |
+| `dev-run.sh`    | every server restart                                          | waits for `:8080`, then `--notify-proxy` → POST                 |
 
 Each open browser tab multiplies the pending-send count (one goroutine
 per tab per send). Manual editing produces one send every few seconds —
@@ -136,7 +146,7 @@ long session is enough to kill the proxy.
 - Present in v0.3.1020 (the latest release at time of writing).
 - Verified still present on `main` (`raw.githubusercontent.com/a-h/templ/main/cmd/templ/generatecmd/sse/server.go`
   fetched 2026-07-23 — identical code).
-- No issue filed for *this* site. Searching "send on closed channel" does
+- No issue filed for _this_ site. Searching "send on closed channel" does
   find [#505](https://github.com/a-h/templ/issues/505) — same panic string,
   different code path (`generatecmd/cmd.go` error handler, fixed Feb 2024) —
   so cite it when filing to preempt a duplicate close.
@@ -148,7 +158,6 @@ long session is enough to kill the proxy.
 ## 2. Evidence
 
 ### 2.1 Unit-level reproduction (deterministic)
-
 
 `bug-findings-appendix/sse-repro/main.go` (own module, imports templ's `sse` package):
 starts an `httptest` server, connects a client that reads one event and
@@ -252,8 +261,8 @@ browser request in that window hangs.
 
 ### 3.3 Lost reload events
 
-`templ`/`--notify-proxy` sends are fire-and-forget to *currently
-connected* SSE clients. While the browser's page load is hanging in the
+`templ`/`--notify-proxy` sends are fire-and-forget to _currently
+connected_ SSE clients. While the browser's page load is hanging in the
 retry loop (3.1), there is no SSE connection, so any reload event fired
 in that window is silently dropped. A burst can therefore end on a stale
 page: the last notify fires while the browser is still waiting for its
@@ -279,15 +288,15 @@ What the branch (`alternative-dev-run-sh`) improved, and why the proxy
 
 **What remains broken, and why**
 
-1. **The crash (§1).** Debouncing lowers send *rate*; the bug needs send
-   *coincidence*. Three notify sources × N tabs means bursts still
+1. **The crash (§1).** Debouncing lowers send _rate_; the bug needs send
+   _coincidence_. Three notify sources × N tabs means bursts still
    eventually produce ≥2 pending sends during a tab disconnect. One
    coincidence → templ dead → proxy dead → blank page at 7331 until
    `task dev` is restarted. `ignore_error: true` hides the corpse.
 2. **Kill-first restarts + 11-min retry budget = guaranteed hang
    windows.** `dev-run.sh restart` deliberately pkills the server before
    wgo rebuilds (to avoid serving a broken render from half-rewritten
-   `_templ.txt` — see commit d0df320), so *every* structural change has a
+   `_templ.txt` — see commit d0df320), so _every_ structural change has a
    server-down window in which browser requests hang (§3.1). Mid-burst
    compile errors stretch the window until the next save (§3.2).
 3. **Stale end states.** Reloads fired during a hang window are lost
@@ -309,7 +318,7 @@ Not applied — options, roughly ordered by effort/benefit:
    `SendSSE` can't be disabled when the proxy is on). Shrinks the
    coincidence window; does not eliminate it.
 3. **Patch/report upstream** — fix worked out in `templ-proxy-fix-draft.md`
-   §2: per-client `done` channel + `select { case f <- event: case <-done: }`,
+   §1: per-client `done` channel + `select { case f <- event: case <-done: }`,
    and never `close(events)`. This keeps blocking semantics (no dropped
    events for live clients), unlike the cruder buffered-channel + `select`/
    `default` drop variant. `bug-findings-appendix/sse-repro/main.go` is a
@@ -333,7 +342,7 @@ Not applied — options, roughly ordered by effort/benefit:
     — the racy `Send` / `close`.
   - `github.com/a-h/templ@v0.3.1020/cmd/templ/generatecmd/proxy/proxy.go`
     — retry RoundTripper (`maxRetries: 20, initialDelay: 100ms,
-    backoffExponent: 1.5`), `ModifyResponse`, SSE wiring.
+backoffExponent: 1.5`), `ModifyResponse`, SSE wiring.
   - `github.com/a-h/templ@v0.3.1020/cmd/templ/generatecmd/proxy/script.js`
     — browser-side reload + `onbeforeunload` close.
 - Retry-budget math: `Σ 100ms·1.5ⁿ, n=0..19 = 100ms·(1.5²⁰−1)/0.5 ≈ 664.9 s`.
@@ -342,4 +351,4 @@ Not applied — options, roughly ordered by effort/benefit:
   byte-identical between the v0.3.1020 module cache and `main`; GitHub
   commit history for the file lists only #130 (2023-08) and #470 (2024-01);
   §3.2 confirmed against `wgo@v0.6.4` source; #505/#842 checked on the
-  upstream tracker (see §1.5 and fix-draft §7).
+  upstream tracker (see §1.5 and fix-draft §4).
