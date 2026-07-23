@@ -87,7 +87,8 @@ K=$(esc "$KEBAB")
 # and dependency dirs whose contents are regenerated).
 FILES=$(find . -type f \
     \( -name '*.go' -o -name '*.templ' -o -name '*.ts' -o -name '*.yml' \
-     -o -name '*.md' -o -name 'go.mod' \) \
+     -o -name '*.yaml' -o -name '*.md' -o -name 'go.mod' \
+     -o -name 'Dockerfile*' \) \
     -not -path './.git/*' \
     -not -path './web/node_modules/*' \
     -not -path './web/tmp/*' \
