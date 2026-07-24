@@ -137,7 +137,8 @@ tasks:
       - cmd: |
           go tool wgo \
             -debounce=256ms \
-            -file=.sql \
+            -xdir=generated \
+            -file='\.sql$' \
             go tool sqlc generate
         ignore_error: true
 

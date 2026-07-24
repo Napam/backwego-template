@@ -10,8 +10,8 @@ import (
 
 	"backwegotemplate"
 	"backwegotemplate/db"
+	"backwegotemplate/db/generated/sqlc"
 	"backwegotemplate/lib/env"
-	"backwegotemplate/lib/generated/sqlc"
 	"backwegotemplate/lib/logging"
 	"backwegotemplate/web/root"
 	"github.com/go-chi/chi/v5"

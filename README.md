@@ -138,7 +138,7 @@ Migrations live in `db/migrations/` (goose format), queries in `db/queries/*.sql
 1. Add a migration file to `db/migrations/` (e.g. `20240101120000_add_posts.sql`)
 2. `task db.migrate` — applies it to your local `data/sqlite.db`
 3. Add or update queries in `db/queries/`
-4. `task gen.db` — regenerates type-safe Go code into `lib/generated/sqlc/`
+4. `task gen.db` — regenerates type-safe Go code into `db/generated/sqlc/`
 
 The sqlc config is at `db/sqlc.yaml`. Migrations also run automatically on
 server startup (disable via `DB_MIGRATE_ON_START=false`).
