@@ -8,6 +8,16 @@ and the `Send` method has not changed since the original hot-reload commits
 
 **File:** `cmd/templ/generatecmd/sse/server.go` (upstream `a-h/templ`).
 
+**Status 2026-07-24:** §1, §2 and §5 are applied in the fork at
+`~/repos/templ` (`b36b91d`, `31b67cd`, `1fe0850`; the touched packages
+pass `go test`). Not yet wired into the project — `go.mod` needs
+`replace github.com/a-h/templ => /Users/naphat/repos/templ` (one directive
+covers runtime and tool; `cmd/templ` is not its own module in the fork).
+
+§5 covers a second, independent bug: one-off `templ generate` runs wipe the
+dev-mode `_templ.txt` files a live watch session renders from (findings
+§6). Symptom is an empty page from the _app itself_, not a dead proxy.
+
 ---
 
 ## 0. Scope: which fix solves what
@@ -27,6 +37,10 @@ the fixes below are not interchangeable:
   PR merges; §2 remains independently useful.
 - Neither direction substitutes: §1 does nothing for hang windows, and
   neither §2 nor §3 prevents the panic.
+
+A third "blank page" cause sits outside this table entirely: the _app_
+returning empty 200s because its dev-mode `_templ.txt` files were deleted
+(findings §6) — the proxy faithfully forwards them. Fixed in §5.
 
 ---
 
@@ -234,3 +248,112 @@ hypothetical templ panics). Don't do both for this bug.
 - File a new issue with the `bug-findings-appendix/sse-repro` repro and the
   panic stack (`server.go:37`), then open a PR with the §1 patch + a
   `-race` regression test.
+- The §5 txt-file fix is a separate issue/PR. Lead argument: a one-off
+  (non-watch) `templ generate` never writes txt files (`devMode` =
+  `Args.Watch`) and never serves from them (`TEMPL_DEV_MODE` is only
+  exported under `--watch`), so running `deleteWatchModeTextFiles` there
+  has zero legitimate function — it can only destroy a concurrent watch
+  session's files. Note that single-file runs (`-f`) are not affected
+  (they return before cleanup), which is why editor on-save plugins don't
+  reproduce it. Attach a before/after experiment like findings §6.5 as the
+  repro.
+
+---
+
+## 5. Dev-mode `_templ.txt` wipe (findings §6) — applied in fork `1fe0850`
+
+Different bug, different symptom from §1: `localhost:8080` itself returns
+`200 OK` with 0 bytes, and the proxy faithfully forwards it. In dev mode
+every static literal is read from a `templ_<sha256>.txt` file in `$TMPDIR`
+at request time; if the file is missing, `WriteString` fails, `Render`
+errors, and handlers that discard the error (`_ = ...Render(...)`) send an
+empty response.
+
+### 5.1 Root cause (recap)
+
+`deleteWatchModeTextFiles()` runs at the end of **every** full-project
+`templ generate`, including one-off non-watch runs (`task check.go`,
+`task gen.templ`), deleting txt files a concurrent watch session's dev
+server still needs. The watcher doesn't self-heal because its in-memory
+hash map (`CompareAndSwap` with `UpdateIfChanged`) skips the rewrite when
+the literals are unchanged — it can't see that the file vanished.
+
+### 5.2 The patches (applied)
+
+**Patch A — gate cleanup on watch mode** (`cmd/templ/generatecmd/cmd.go`):
+
+```go
+// Clean up temporary watch mode text files. Only do this for watch
+// sessions: a one-off generate must not delete the text files of a
+// dev session that is still running, since its server renders from
+// them (missing files make every page render as an empty response).
+if cmd.Args.Watch {
+	if err := cmd.deleteWatchModeTextFiles(); err != nil {
+		cmd.Log.Warn("Failed to delete watch mode text files", slog.Any("error", err))
+	}
+}
+```
+
+**Patch B — rewrite missing txt files** (`cmd/templ/generatecmd/eventhandler.go`):
+
+```go
+// Rewrite the file if the literals changed, or if it vanished from
+// disk (deleted externally) — otherwise the running dev server keeps
+// rendering empty pages until the literals happen to change.
+_, statErr := os.Stat(txtFileName)
+if h.hashes.CompareAndSwap(txtFileName, syncmap.UpdateIfChanged, txtHash) || statErr != nil {
+	if err = os.WriteFile(txtFileName, []byte(joined), 0o644); err != nil {
+		return result, nil, fmt.Errorf("failed to write string literal file %q: %w", txtFileName, err)
+	}
+}
+```
+
+### 5.3 Why this is correct
+
+- A one-off generate never writes txt files (`devMode` = `Args.Watch`) and
+  never serves from them (`TEMPL_DEV_MODE` is only exported to the `--cmd`
+  child under `--watch`), so gating cleanup on `Watch` removes pure
+  destruction and nothing else. Watch-session teardown still cleans up on
+  exit — verified: txt is deleted when the fork's watch session ends.
+- Patch B costs one extra `stat` per regeneration, dev-mode only.
+  Rewriting on any stat error (not just `ErrNotExist`) is safe: a
+  genuinely broken path fails loudly at `WriteFile`.
+- Single-file runs (`-f`) return before cleanup either way, so editor
+  plugins are unaffected by the change.
+
+### 5.4 Verification
+
+`tmp/txt-fix-verify/` experiment, 2026-07-24 (stock v0.3.1020 binary vs
+fork binary) — full table in findings §6.5: upstream one-off generate
+deletes a live session's txt (bug reproduced); the fork's doesn't
+(Patch A); fork watch exit still cleans up; a manually deleted txt is
+rewritten on the next regeneration even with unchanged literal hashes
+(Patch B).
+
+**Limitation (verified):** Patch B only heals files that get regenerated —
+a deleted txt whose template is never edited again stays missing, and its
+pages stay empty, until the session restarts.
+
+### 5.5 Optional follow-up: degrade instead of failing the render
+
+`runtime/watchmode.go`, `GetWatchedString`: on `errors.Is(err,
+fs.ErrNotExist)` return `defaultValue` instead of an error:
+
+```go
+literals, err := sl.getWatchedStrings(txtFilePath)
+if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
+		return defaultValue, nil // stale text beats an empty page
+	}
+	return "", fmt.Errorf("templ: failed to get watched strings for %q: %w", path, err)
+}
+```
+
+Turns "empty page" into "compiled-in (possibly stale) text" —
+structurally consistent because the defaults match the compiled literal
+indices. Closes the residual gap (deleters other than this binary: global
+installs, editor plugins doing full generates, OS `$TMPDIR` cleaning;
+files never edited again). Gate strictly on `ErrNotExist` so
+permission/corruption errors still fail loudly. Separate upstream PR —
+it's a runtime-semantics change, unlike the two generator-side patches
+above.

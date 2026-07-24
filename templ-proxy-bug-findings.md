@@ -25,6 +25,17 @@ macOS arm64, branch `alternative-dev-run-sh`.
    disconnects). With three independent notify sources, bursts still
    eventually produce that coincidence.
 
+**Status 2026-07-24:** the fork at `~/repos/templ` carries three patches —
+the §1 SSE panic fix (`b36b91d`, fix-draft §1), the §3.1 retry-budget fix
+(`31b67cd`, fix-draft §2), and the §6 txt-file fixes (`1fe0850`, fix-draft
+§5). All pass templ's test suite, and the §6 fixes were re-verified
+experimentally (§6.5). **Pending:** this project still runs upstream
+v0.3.1020 — wiring the fork in needs
+`replace github.com/a-h/templ => /Users/naphat/repos/templ` in `go.mod`
+(one directive covers both runtime and tool; `cmd/templ` is not its own
+module in the fork), plus logging the discarded render error at
+`cmd/serve/main.go:66` (§6.7).
+
 ---
 
 ## 1. Root cause: `panic: send on closed channel` in templ's SSE handler
@@ -306,7 +317,11 @@ What the branch (`alternative-dev-run-sh`) improved, and why the proxy
 
 ## 5. Fix directions
 
-Not applied — options, roughly ordered by effort/benefit:
+Status 2026-07-24: option 3 is done — the fork carries the SSE fix
+(`b36b91d`, fix-draft §1) and the retry-budget fix (`31b67cd`, fix-draft
+§2). Options 1, 2 and 4 stay unneeded as long as the fork is wired into
+`go.mod` (still pending, see top-of-file status). Original options kept
+for reference:
 
 1. **Supervise templ in `dev.go`** — run it in a restart loop
    (`until go tool templ generate ...; do sleep 1; done`). A panic then
@@ -328,6 +343,182 @@ Not applied — options, roughly ordered by effort/benefit:
    correct send loop, plus fast-fail (short retry budget) when the
    upstream is down. Eliminates §1 and §3.1 at once and makes the dev
    loop independent of upstream bugs, at the cost of owning that code.
+
+---
+
+## 6. Empty-page bug: dev-mode `_templ.txt` files deleted mid-session
+
+**Not speed-dependent.** This bug is unrelated to editing speed or burst
+timing — unlike the SSE panic (§1), which needs overlapping send
+goroutines. The txt-file wipe is triggered by *any* full-project
+`templ generate` (one-off) running while a `--watch` session is live.
+Manual editing never triggers it because manual users don't run `task
+check.go` or `task gen.templ` while `task dev` is active — the watch
+session handles everything and only cleans up at exit. Agent workflows
+trigger it routinely because agents run validation tasks (which invoke
+one-off generates) between edits. A single concurrent one-off generate at
+any point is enough; the editing pace is irrelevant.
+
+### 6.1 Symptom
+
+After a burst of file changes (e.g. sqlc regeneration), `localhost:8080`
+itself returns an empty page — not just the proxy. `curl localhost:8080`
+returns `200 OK` with 0 bytes. The templ log shows:
+
+```
+HTTP Request › method=GET path=/chats/... status=0 bytes=0 duration=889792
+```
+
+while static 404s complete normally (`status=404 bytes=19`). The proxy is
+innocent — it faithfully forwards the app's empty response.
+
+### 6.2 Root cause: dev-mode text files live in `$TMPDIR` and get wiped
+
+In `TEMPL_DEV_MODE=true` (set by `templ generate --watch --cmd`), generated
+Go code calls `templruntime.WriteString` for **every** static string literal
+(tags, text, whitespace). At request time, `WriteString` loads each literal
+from a `templ_<sha256>.txt` file in `$TMPDIR` instead of using the
+compiled-in default. If that file is missing or stale, `WriteString` fails
+→ `Render` returns an error → the handler's response is empty.
+
+In chatbase, `GetChat` discards the render error:
+
+```go
+_ = root.RootPage(sessionID, chatSessions, messages).Render(r.Context(), w)
+```
+
+So the failure is silent: status 0, 0 bytes, empty page.
+
+### 6.3 What deletes the files
+
+`deleteWatchModeTextFiles()` in `cmd.go` runs at the end of **every**
+full-project `templ generate` — including one-off, non-watch runs:
+
+- `task check.go` (runs `go tool templ generate`)
+- `task gen.templ`
+- `task dev` shutdown (templ exit)
+
+Correction (second opinion, 2026-07-24): single-file runs are **not** a
+vector — `templ generate -f <file>` returns from `Run()` before the
+cleanup, so editor generate-on-save plugins that use `-f` (e.g. the VSCode
+extension) never trigger the wipe. The in-repo triggers are the full
+one-off generates above.
+
+The asymmetry that makes this an unambiguous bug: txt files are only ever
+*written* when `--watch` is set (`devMode` = `Args.Watch` in
+`NewFSEventHandler`), and `TEMPL_DEV_MODE=true` is only exported to the
+`--cmd` child under `--watch`. A one-off generate therefore never writes
+txt files and never serves from them — its cleanup run has zero legitimate
+function and can only destroy a concurrent session's files.
+
+Any full-project run above wipes the txt files belonging to a live watch
+session whose dev server still needs them.
+
+### 6.4 Why the watcher doesn't self-heal
+
+The watcher's in-memory hash map (`h.hashes`) only rewrites a txt file when
+the literal content changes (`CompareAndSwap` with `UpdateIfChanged`). An
+externally deleted file has the same hash as before, so the watcher skips
+the rewrite — empty pages persist until a template's literals actually
+change or the session restarts.
+
+### 6.5 End-to-end verification
+
+Controlled experiment in `tmp/txt-deletion-test/`:
+
+```
+=== upstream v0.3.1020, one-off generate ===
+txt DELETED ✗ (bug confirmed)
+
+=== patched fork, one-off generate ===
+txt SURVIVED ✓
+```
+
+The upstream `templ generate` (non-watch) deletes the live session's txt
+file. The patched fork (watch-gated) preserves it.
+
+Re-verified 2026-07-24 (second opinion; fresh experiment in
+`tmp/txt-fix-verify/`, stock v0.3.1020 binary vs fork binary at `1fe0850`):
+
+| Test | Result |
+| ---- | ------ |
+| upstream one-off generate while fork `--watch` session is live | txt DELETED — bug reproduced |
+| fork one-off generate while fork watch session is live | txt SURVIVED — Fix 1 works |
+| fork watch session exits | txt DELETED — Watch gate still allows end-of-session cleanup (no leak) |
+| txt deleted manually, then comment-only edit (identical literal hash) | txt REWRITTEN — Fix 2 works |
+| txt deleted manually, no further edits | txt stays MISSING — Fix 2 only heals on regeneration |
+
+### 6.6 Fixes applied in the fork
+
+**Fix 1 — gate `deleteWatchModeTextFiles` on watch mode** (`cmd.go`):
+
+```go
+// Only clean up txt files for watch sessions — a one-off generate
+// must not delete the files of a still-running dev server.
+if cmd.Args.Watch {
+    if err := cmd.deleteWatchModeTextFiles(); err != nil {
+        cmd.Log.Warn("Failed to delete watch mode text files", ...)
+    }
+}
+```
+
+**Fix 2 — rewrite missing txt files** (`eventhandler.go`):
+
+```go
+// Rewrite when content changed, or when the file vanished from disk
+// (deleted externally) so the running dev server recovers.
+_, statErr := os.Stat(txtFileName)
+if h.hashes.CompareAndSwap(txtFileName, syncmap.UpdateIfChanged, txtHash) || statErr != nil {
+    os.WriteFile(txtFileName, []byte(joined), 0o644)
+}
+```
+
+Both fixes are applied in the fork as `1fe0850` and pass templ's test
+suite. **Fix 2 limitation (verified, §6.5):** it only heals files that get
+regenerated — a deleted txt whose template is never edited again stays
+missing, and its pages stay empty, until the session restarts. Residual
+deletion sources neither fix covers: templ binaries without Fix 1 (global
+installs, editor plugins configured for full-project generate, CI on the
+same machine), OS-level `$TMPDIR` cleaning, and a second concurrent watch
+session on the same path exiting first.
+
+**Fix 3 (optional, not applied) — degrade to compiled-in text on missing
+txt** (`runtime/watchmode.go`, `GetWatchedString`):
+
+```go
+literals, err := sl.getWatchedStrings(txtFilePath)
+if err != nil {
+    if errors.Is(err, fs.ErrNotExist) {
+        return defaultValue, nil // stale text beats an empty page
+    }
+    return "", fmt.Errorf("templ: failed to get watched strings for %q: %w", path, err)
+}
+```
+
+A missing dev-cache then degrades to "possibly stale text" instead of
+failing the render — the compiled-in defaults always match the compiled
+literal indices, so output stays structurally consistent. Gate strictly on
+`ErrNotExist` so permission/corruption errors still fail loudly. This
+eliminates the empty-page symptom class entirely (any deleter, files never
+edited again); ship as a separate upstream change.
+
+### 6.7 Chatbase-side amplifier
+
+`GetChat` and potentially other handlers discard render errors with
+`_ = ...Render(...)`. Changing to log the error makes failures visible:
+
+```go
+if err := root.RootPage(...).Render(r.Context(), w); err != nil {
+    h.logger.Error("Render failed", slog.Any("error", err))
+}
+```
+
+This doesn't prevent the empty page, but it stops the failure from being
+completely silent.
+
+This template repo has the same pattern at `cmd/serve/main.go:66`
+(`_ = root.RootPage(users, editID).Render(...)`) — apply the same logging
+change here.
 
 ---
 
