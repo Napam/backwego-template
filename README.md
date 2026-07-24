@@ -76,7 +76,8 @@ redirects back. No client-side JS required — web components enhance where
 needed.
 
 - All generated web assets (`build.ts` bundles `lib/**/*.ts` into
-  `web/static/bundle.js`, tailwindcss outputs `web/static/tailwind.css`) are
+  `web/static/bundle.js` and page-specific `.ts` files into
+  `web/static/page-files/`, tailwindcss outputs `web/static/tailwind.css`) are
   embedded into the binary via `//go:embed web/static/*` in production builds.
   The entire `web/static/` directory is gitignored.
 - Two build modes via Go build tags: production (`task build.go`) embeds all
@@ -103,6 +104,31 @@ Tech stack:
 - [goose](https://github.com/pressly/goose) - database migrations
 - [sqlc](https://sqlc.dev/) - type-safe database queries
 - [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) - pure Go SQLite driver
+
+## JavaScript bundling
+
+`web/build.ts` (run automatically by `task dev` on any `.ts` change) produces
+two kinds of bundles:
+
+- **Shared bundle:** everything in `web/lib/**/*.ts` becomes a single
+  `static/bundle.js`. This is where web components live, and it is loaded
+  synchronously in `<head>` so all custom elements are registered before the
+  body parses.
+- **Page bundles:** a `.ts` file in any other `web/` subdirectory (e.g.
+  `web/root/root.ts`, next to its `.templ`) becomes its own bundle at
+  `static/page-files/<dir>/<name>.js`. Load it on just that page:
+
+  ```templ
+  <script src={ backwegotemplate.StaticRootPath("static/bundle.js") }></script>
+  <script defer src={ backwegotemplate.StaticRootPath("static/page-files/root/root.js") }></script>
+  ```
+
+Page files are plain top-level browser code — no exports needed. One rule:
+**don't import from `lib/` in page files.** The iife format has no code
+splitting, so lib code would be duplicated into each page bundle, and
+re-registering an already-defined custom element throws. Since `bundle.js`
+loads first, page scripts can assume all components exist and interact with
+them via the DOM.
 
 ## Database
 
@@ -179,9 +205,9 @@ From here you may want to:
 │
 └── web
     ├── build.ts        script to build web assets, outputs to web/static
-    ├── lib             shared typescript libraries
-    ├── root            templ root page
-    └── static          build artifacts (bundle.js, tailwind.css), gitignored
+    ├── lib             shared typescript libraries (→ static/bundle.js)
+    ├── root            templ root page (optional .ts → static/page-files/root/)
+    └── static          build artifacts (bundle.js, page-files/, tailwind.css), gitignored
 ```
 
 ## Who this is for

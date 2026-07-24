@@ -11,3 +11,13 @@
   - to auto-fix formatting/linting, run `task fix` (or `task fix.go` / `task fix.web`)
 
 - In `web/` avoid having inline svgs, always make icons at `web/lib/web-components/icons`
+
+- JS bundling (see `web/build.ts`):
+  - `web/lib/**/*.ts` → single shared `static/bundle.js`, loaded synchronously
+    in `<head>` (registers all web components before body parses).
+  - `.ts` files in any other top-level dir (e.g. `web/root/root.ts`, next to
+    its `.templ`) → per-file page bundles in `static/page-files/<dir>/`,
+    loaded per page with `<script defer>`.
+  - Page files must not import from `lib/`: iife has no code splitting, so
+    lib code would be duplicated and re-registering custom elements throws.
+    bundle.js loads first; page scripts interact with components via the DOM.
