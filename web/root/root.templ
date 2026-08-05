@@ -16,18 +16,25 @@ templ RootPage(users []sqlc.User, editID int64) {
 			<script src={ backwegotemplate.StaticRootPath("static/bundle.js") }></script>
 			<script defer src={ backwegotemplate.StaticRootPath("static/page-files/root/root.js") }></script>
 		</head>
-		<body class="min-h-screen bg-gray-50 text-gray-700 dark:bg-neutral-900 dark:text-neutral-300">
+		<body
+			class="min-h-screen bg-gray-50 font-sans text-gray-700 dark:bg-neutral-900 dark:text-neutral-300"
+		>
 			<header class="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/80">
 				<div class="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-					<h1 class="text-lg font-bold tracking-tight text-gray-900 dark:text-white">Backwego Template</h1>
+					<h1 class="text-2xl font-bold tracking-tight text-gray-700 dark:text-neutral-200">Backwego Template</h1>
 					<theme-button></theme-button>
 				</div>
 			</header>
 			<main class="mx-auto max-w-3xl px-6 py-10">
 				<section class="mb-12">
-					<p class="mb-6 leading-relaxed text-gray-600 dark:text-neutral-400">
-						A starter template for building fullstack SSR-first web applications
-					</p>
+					<div class="mb-8 flex items-center justify-between gap-4">
+						<p class="text-xl leading-relaxed text-gray-600 dark:text-neutral-400">
+							A starter template for building fullstack SSR-first web applications
+						</p>
+						<div class="rounded-full p-8 dark:bg-neutral-700 dark:mask-[radial-gradient(circle_at_center,black_20%,transparent_85%,transparent_100%)]">
+							<img class="h-24" src={ backwegotemplate.StaticRootPath("static/assets/gopher-running-outline.svg") }/>
+						</div>
+					</div>
 					<dl class="grid grid-cols-2 gap-x-4 gap-y-6 text-sm text-gray-600 dark:text-neutral-400">
 						<div>
 							<dt class="mb-1"><a class={ techAnchorClass } href="https://go.dev">Go</a> - backend language</dt>

@@ -126,6 +126,7 @@ tasks:
           -xdir=static \
           -file='\.ts$' \
           -file='\.css$' \
+          -file='\.(png|jpe?g|gif|webp|svg|ico|ttf|woff2?|avif|mp4)$' \
           bun run build.ts :: go tool templ generate --notify-proxy --proxybind=$LIVE_RELOAD_PROXY_HOST --proxyport=$LIVE_RELOAD_PROXY_PORT
         ignore_error: true
 

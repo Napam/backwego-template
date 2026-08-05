@@ -130,6 +130,34 @@ re-registering an already-defined custom element throws. Since `bundle.js`
 loads first, page scripts can assume all components exist and interact with
 them via the DOM.
 
+## Static assets
+
+Images and other files served as-is live in `web/assets/` — committed to git,
+subdirectories welcome. `web/build.ts` hardlinks every file there into
+`web/static/assets/`, mirroring the directory structure (a hardlink, not a
+copy, so the repo keeps a single on-disk copy). The `task dev` watcher picks up
+asset edits (images, svgs, fonts, favicons) and re-runs the build
+automatically.
+
+Reference them in templ with the same helper the bundles use:
+
+```templ
+<img src={ backwegotemplate.StaticRootPath("static/assets/logo.svg") } alt="Logo"/>
+```
+
+`StaticRootPath` returns a plain root-relative path in dev and a content-hashed
+URL in production (see below), so it works for `src`, `href`, and inline
+`style` backgrounds alike.
+
+- Production builds embed the assets into the binary (`//go:embed web/static/*`)
+  and `hashfs` content-hashes the URLs for cache busting; dev mode serves them
+  straight from disk with `no-store`.
+- Don't put files in `web/static/` by hand as it is build output, gitignored and
+  wiped on every `task build.go`.
+- For icons that should scale or restyle with the theme, use web-component SVG
+  icons in `web/lib/web-components/icons` (see AGENTS.md); `web/assets/` is for
+  images and other static files.
+
 ## Database
 
 Migrations live in `db/migrations/` (goose format), queries in `db/queries/*.sql`
@@ -204,6 +232,7 @@ From here you may want to:
 ├── tmp                 temp files/pidfiles, gitignored
 │
 └── web
+    ├── assets          committed static assets (→ static/assets/)
     ├── build.ts        script to build web assets, outputs to web/static
     ├── lib             shared typescript libraries (→ static/bundle.js)
     ├── root            templ root page (optional .ts → static/page-files/root/)

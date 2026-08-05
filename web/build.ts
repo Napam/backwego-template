@@ -1,5 +1,6 @@
 import { Glob } from 'bun'
 import fs from 'fs'
+import path from 'path'
 
 const isProdBuild = process.env.ENV === 'prod'
 // Overridable so `task check.web` can build to a scratch dir instead of
@@ -7,9 +8,7 @@ const isProdBuild = process.env.ENV === 'prod'
 const outdir = process.env.OUTDIR ?? 'static'
 
 /**
- * Finds all .ts files in lib/ and bundles them into a single file.
- * This is where web components (custom elements) get bundled so they
- * can be loaded synchronously in the HTML.
+ * All lib/ components → single bundle.js, loaded sync in <head>.
  */
 async function bundleLib() {
   const glob = new Glob('lib/**/*.ts')
@@ -55,20 +54,13 @@ async function bundleLib() {
 /**
  * Top-level directories that never contain page-specific code.
  */
-const nonPageDirs = new Set(['lib', 'node_modules', 'static', 'tmp'])
+const nonPageDirs = new Set(['assets', 'lib', 'node_modules', 'static', 'tmp'])
 
 /**
- * Bundles every .ts file outside lib/ (e.g. root/root.ts) as its own entry
- * point into page-files/, so each page can load only its own JS on top of
- * the shared bundle.js:
- *
- *   <script src=".../static/bundle.js"></script>
- *   <script defer src=".../static/page-files/root/root.js"></script>
- *
- * Page files must not import from lib/: iife has no code splitting, so lib
- * code would be duplicated into every page bundle — and re-running component
- * registration (customElements.define) throws. bundle.js loads first, so
- * page scripts can assume all components are already registered.
+ * One bundle per page dir into page-files/ (root/root.ts → page-files/root/root.js).
+ * Must NOT import from lib/: iife has no code splitting, so lib code would
+ * duplicate per page and re-running customElements.define throws. bundle.js
+ * loads first, so page scripts can assume components are registered.
  */
 async function bundlePageFiles() {
   const glob = new Glob('*/**/*.ts')
@@ -109,6 +101,79 @@ async function bundlePageFiles() {
     spent: Date.now() - start,
     minify: isProdBuild,
     treeShaking: true,
+  }
+}
+
+// ── Static asset exposure ──
+
+/**
+ * Hardlink not copy — repo keeps one on-disk copy. Same volume always:
+ * assets/ and output dir are both in the repo, or both in the Docker overlay.
+ */
+// Returns false when the dest already pointed at src and nothing was done.
+function ensureHardlink(src: string, dest: string): boolean {
+  if (!fs.existsSync(src)) {
+    throw new Error(
+      `Source file to hardlink does not exist: ${src}. Expected the file to be at ${path.resolve(src)}`
+    )
+  }
+
+  // Already linked to src? Skip — touching fs fires a watch event on the
+  // source (macOS kqueue reports link() as CREATE) and loops `task dev`.
+  if (fs.existsSync(dest) && fs.statSync(dest).ino === fs.statSync(src).ino) {
+    return false
+  }
+
+  fs.rmSync(dest, { force: true })
+
+  const destDir = path.dirname(dest)
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true })
+  }
+
+  fs.linkSync(src, dest)
+  return true
+}
+
+/**
+ * Hardlink every asset into <outdir>/assets/, mirroring subdirs. Runs after
+ * bundle steps so link/prune can't interfere with fresh output.
+ */
+function exposeFiles() {
+  const start = Date.now()
+
+  const assetOutdir = `${outdir}/assets`
+  const glob = new Glob('assets/**/*')
+  const hardlinks = Array.from(glob.scanSync('.'))
+    .filter((f) => fs.statSync(f).isFile())
+    .map((src) => ({
+      src,
+      dest: `${assetOutdir}/${src.replace('assets/', '')}`,
+    }))
+
+  let linked = 0
+  for (const { src, dest } of hardlinks) {
+    if (ensureHardlink(src, dest)) linked++
+  }
+
+  // Prune stale hardlinks: any file in assets/ whose path is not a current
+  // source → renamed/deleted asset. Scan only assets/ — ours exclusively;
+  // never touch the rest of outdir.
+  if (fs.existsSync(assetOutdir)) {
+    const sourceDests = new Set(hardlinks.map((h) => h.dest))
+    for (const entry of new Glob('**/*').scanSync(assetOutdir)) {
+      const dest = `${assetOutdir}/${entry}`
+      const stat = fs.statSync(dest)
+      if (stat.isFile() && !sourceDests.has(dest)) {
+        fs.rmSync(dest)
+      }
+    }
+  }
+
+  return {
+    spent: Date.now() - start,
+    hardlinkedFiles: hardlinks,
+    linked,
   }
 }
 
@@ -162,6 +227,7 @@ const start = Date.now()
 console.log(`${cyan('build')} Starting JS build${isProdBuild ? green(' [production]') : ''}`)
 const libBundleRes = await bundleLib()
 const pageBundleRes = await bundlePageFiles()
+const exposeRes = exposeFiles()
 
 // ── Summary ──
 
@@ -181,6 +247,11 @@ if (pageBundleRes) {
   for (const src of pageBundleRes.included) {
     console.log(`${dim('│')} ${src}`)
   }
+}
+
+console.log(`${cyan('build')} Hardlinked ${exposeRes.linked} files ${dim(`${exposeRes.spent}ms`)}`)
+for (const { src, dest } of exposeRes.hardlinkedFiles) {
+  console.log(`${dim('│')} ${src} ${dim('→')} ${dest} ${dim(fileSize(dest))}`)
 }
 
 console.log(`${cyan('build')} Done in ${green(`${Date.now() - start}ms`)}`)
