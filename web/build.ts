@@ -58,9 +58,10 @@ const nonPageDirs = new Set(['assets', 'lib', 'node_modules', 'static', 'tmp'])
 
 /**
  * One bundle per page dir into page-files/ (root/root.ts → page-files/root/root.js).
- * Must NOT import from lib/: iife has no code splitting, so lib code would
- * duplicate per page and re-running customElements.define throws. bundle.js
- * loads first, so page scripts can assume components are registered.
+ * Avoid importing from lib/: small utilities are fine, but each import
+ * duplicates code into the page bundle (iife, no code splitting). Don't
+ * import web components from lib/: bundle.js already registered them, so
+ * re-running customElements.define throws.
  */
 async function bundlePageFiles() {
   const glob = new Glob('*/**/*.ts')
@@ -107,7 +108,7 @@ async function bundlePageFiles() {
 // ── Static asset exposure ──
 
 /**
- * Hardlink not copy — repo keeps one on-disk copy. Same volume always:
+ * Hardlink, not copy: repo keeps one on-disk copy. Same volume always:
  * assets/ and output dir are both in the repo, or both in the Docker overlay.
  */
 // Returns false when the dest already pointed at src and nothing was done.
@@ -118,7 +119,7 @@ function ensureHardlink(src: string, dest: string): boolean {
     )
   }
 
-  // Already linked to src? Skip — touching fs fires a watch event on the
+  // Already linked to src? Skip: touching fs fires a watch event on the
   // source (macOS kqueue reports link() as CREATE) and loops `task dev`.
   if (fs.existsSync(dest) && fs.statSync(dest).ino === fs.statSync(src).ino) {
     return false
@@ -157,7 +158,7 @@ function exposeFiles() {
   }
 
   // Prune stale hardlinks: any file in assets/ whose path is not a current
-  // source → renamed/deleted asset. Scan only assets/ — ours exclusively;
+  // source → renamed/deleted asset. Scan only assets/ (ours exclusively);
   // never touch the rest of outdir.
   if (fs.existsSync(assetOutdir)) {
     const sourceDests = new Set(hardlinks.map((h) => h.dest))

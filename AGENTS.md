@@ -18,6 +18,7 @@
   - `.ts` files in any other top-level dir (e.g. `web/root/root.ts`, next to
     its `.templ`) → per-file page bundles in `static/page-files/<dir>/`,
     loaded per page with `<script defer>`.
-  - Page files must not import from `lib/`: iife has no code splitting, so
-    lib code would be duplicated and re-registering custom elements throws.
-    bundle.js loads first; page scripts interact with components via the DOM.
+  - Page files: avoid importing from `lib/`. Small utility imports are fine,
+    but each duplicates code into the page bundle (iife has no code
+    splitting). Don't import web components from `lib/`: re-registering them
+    throws.

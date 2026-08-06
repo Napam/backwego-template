@@ -4,8 +4,8 @@ Opinionated template for SSR-first Go apps: templ for HTML, tailwindcss for
 styling, Lit for web components, sqlite for data, goose for migrations.
 Everything compiles into a single binary, all with live reload.
 
-This template is a base for hypermedia driven applications, and fits very well
-with frameworks such as [htmx](https://htmx.org/).
+It's a base for hypermedia-driven applications, and pairs well with frameworks
+like [htmx](https://htmx.org/).
 
 Requirements:
 
@@ -30,70 +30,52 @@ Requirements:
 
    </details>
 
-2. Using this as a template for your own project? Run the rename wizard first,
-   see [Renaming](#renaming).
+2. Planning to use it for your own project? Run the rename wizard first:
+   [Renaming](#renaming).
 
-3. In the repo root, run `task dev`. This sets up the git pre-push hook,
-   installs the pinned golangci-lint into `bin/`, and starts the dev server
-   with live reload.
+3. In the repo root, run `task dev`. It sets up the git pre-push hook and
+   starts the dev server with live reload.
 
-4. Open the site at `localhost:7331` (the live reload proxy; configure via
-   `LIVE_RELOAD_PROXY_PORT` in `Taskfile.yml`). The app itself listens on
-   `PORT` (default `8080`).
+4. Open the site at `localhost:7331`. The app itself listens on `PORT`
+   (default `8080`).
 
 5. Start making changes: the application entrypoint is `cmd/serve/main.go` and
    the frontend root page is `web/root/root.templ`.
 
 For production build: `task build.go` (output in `bin/app`).
 
-Directory conventions: `bin/` holds build outputs, `tmp/` holds temporary
-files (pidfiles, scratch data, etc). Both are gitignored.
-
-Docker is ready to go:
+Docker:
 
 ```sh
 task build.docker       # build image
 task build.docker.run   # build and run
 ```
 
-See `Taskfile.yml` for available commands.
-
 ## Renaming
 
-The project ships with an interactive rename wizard:
+There's an interactive rename wizard:
 
 `./scripts/rename.sh`
 
-This replaces the Go module/package name, the display name, and the kebab-case
+It replaces the Go module/package name, the display name, and the kebab-case
 project name across all source files.
 
 **Note:** This is a one-way operation. To undo, use `git checkout .`.
 
 ## How it works
 
-Server renders HTML with templ. Forms POST to the server, which processes and
-redirects back. No client-side JS required — web components enhance where
+The server renders HTML with templ. Forms POST to the server, which processes
+and redirects back. No client-side JS required. Web components enhance where
 needed.
 
-- All generated web assets (`build.ts` bundles `lib/**/*.ts` into
-  `web/static/bundle.js` and page-specific `.ts` files into
-  `web/static/page-files/`, tailwindcss outputs `web/static/tailwind.css`) are
-  embedded into the binary via `//go:embed web/static/*` in production builds.
-  The entire `web/static/` directory is gitignored.
-- Two build modes via Go build tags: production (`task build.go`) embeds all
-  web assets and migrations into the binary. Dev mode (`task dev` with
-  `-tags=noembed`) serves `web/static/` directly from disk with `Cache-Control: no-store`,
-  so changes are visible on reload without a rebuild.
-- Hash-based asset caching: the `hashfs` library (in `lib/hashfs`) renames
-  files with a content hash (e.g. `bundle.abc123.js`). Use the `StaticRootPath`
-  helper in templ to reference assets — it resolves to the hashed path in
-  production and the plain path in dev.
+- Production builds embed web assets and migrations into the binary; dev mode
+  serves them from disk, so changes show up on reload without a rebuild
+  (details under [Web assets](#web-assets)).
 - Web components with shadow DOM and shared TailwindCSS (and working dark mode
   toggling)
-- Live reload for Go, templ, TypeScript, and TailwindCSS just by using `task dev`
 - Dockerfile that builds a minimal scratch image
-- golangci-lint, eslint, and prettier come preconfigured; run a full
-  backend+frontend static, lint, and compile check with `task check`
+- golangci-lint, eslint, and prettier preconfigured. `task check` runs a full
+  backend+frontend static, lint, and compile check.
 
 Tech stack:
 
@@ -105,7 +87,7 @@ Tech stack:
 - [sqlc](https://sqlc.dev/) - type-safe database queries
 - [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) - pure Go SQLite driver
 
-## JavaScript bundling
+## Web assets
 
 `web/build.ts` (run automatically by `task dev` on any `.ts` change) produces
 two kinds of bundles:
@@ -123,16 +105,13 @@ two kinds of bundles:
   <script defer src={ backwegotemplate.StaticRootPath("static/page-files/root/root.js") }></script>
   ```
 
-Page files are plain top-level browser code — no exports needed. One rule:
-**don't import from `lib/` in page files.** The iife format has no code
-splitting, so lib code would be duplicated into each page bundle, and
-re-registering an already-defined custom element throws. Since `bundle.js`
-loads first, page scripts can assume all components exist and interact with
-them via the DOM.
+Page files are plain top-level browser code, no exports needed. Avoid
+importing from `lib/`: the iife bundle has no code splitting, so each import
+duplicates code into the page bundle. Small utility imports are fine if you
+accept that. Don't import web components from `lib/`: re-registering an
+already-defined custom element throws.
 
-## Static assets
-
-Images and other files served as-is live in `web/assets/` — committed to git,
+Images and other files served as-is live in `web/assets/`, committed to git;
 subdirectories welcome. `web/build.ts` hardlinks every file there into
 `web/static/assets/`, mirroring the directory structure (a hardlink, not a
 copy, so the repo keeps a single on-disk copy). The `task dev` watcher picks up
@@ -160,16 +139,16 @@ URL in production (see below), so it works for `src`, `href`, and inline
 
 ## Database
 
-Migrations live in `db/migrations/` (goose format), queries in `db/queries/*.sql`
-(sqlc format). The workflow for schema changes:
+Migrations live in `db/migrations/` (goose format), queries in
+`db/queries/*.sql` (sqlc format). To change the schema:
 
 1. Add a migration file to `db/migrations/` (e.g. `20240101120000_add_posts.sql`)
-2. `task db.migrate` — applies it to your local `data/sqlite.db`
+2. `task db.migrate` applies it to your local `data/sqlite.db`
 3. Add or update queries in `db/queries/`
-4. `task gen.db` — regenerates type-safe Go code into `db/generated/sqlc/`
+4. `task gen.db` regenerates type-safe Go code into `db/generated/sqlc/`
 
-The sqlc config is at `db/sqlc.yaml`. Migrations also run automatically on
-server startup (disable via `DB_MIGRATE_ON_START=false`).
+Migrations also run automatically on server startup (disable via
+`DB_MIGRATE_ON_START=false`).
 
 ## Linting and checks
 
@@ -177,23 +156,21 @@ server startup (disable via `DB_MIGRATE_ON_START=false`).
 code, and prettier + eslint + typescript + bundle build for the web code. The
 git pre-push hook (installed by `task init`) runs `task check` as well.
 
-golangci-lint notes:
-
-- The version is pinned in `.golangci-version` and auto-installed into `bin/`
-  by `task init`, so it is not a manual requirement.
+The golangci-lint version is pinned in `.golangci-version` and auto-installed
+into `bin/` by `task init`, so there's nothing to install manually.
 
 ## What next
 
-From here you may want to:
+You may want to:
 
 - **Add a hypermedia framework:** [htmx](https://htmx.org/),
   [Datastar](https://data-star.dev/), or [Alpine
   AJAX](https://alpine-ajax.js.org/) gives you dynamic UI without writing JS.
   All play nice with web components. See https://htmx.org/essays/alternatives/
-  for a list of other alternatives.
+  for more options.
 - **Swap the database:** change the driver and connection string in
-  `cmd/serve/main.go` to use Postgres, MySQL, or whatever you prefer, then
-  update the sqlc config at `./db/sqlc.yaml`
+  `cmd/serve/main.go` to use Postgres, MySQL, or another driver, then update
+  the sqlc config at `./db/sqlc.yaml`
 - **Switch to JSON logging:** replace `logging.NewHandler(...)` with
   `slog.NewJSONHandler(os.Stdout, ...)` in `cmd/serve/main.go` for
   production-ready JSON logs
@@ -241,9 +218,8 @@ From here you may want to:
 
 ## Who this is for
 
-I have tried to structure the template such that it is nice to use in general
-for anybody, but it should be noted I have primarily optimized the template for
-the tools and workflows I use in general:
+I've tried to keep the template nice to use for anybody, but I've mainly
+optimized it for my own tools and workflows:
 
 1. Neovim 0.12+ with my custom config
 2. Being very CLI-first
