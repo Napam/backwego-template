@@ -42,6 +42,12 @@ Requirements:
 5. Start making changes: the application entrypoint is `cmd/serve/main.go` and
    the frontend root page is `web/root/root.templ`.
 
+> Known dev quirk: saving a `.templ` file through an atomic-rename editor
+> (e.g. `sed -i`, vim/nvim's default write) can trip templ's file watcher
+> into a "failed to stat ... no such file or directory" error. The browser
+> shows an error page and Go rebuilds pause until you restart `task dev`.
+> Editors that write in place (e.g. VS Code) don't hit this.
+
 For production build: `task build.go` (output in `bin/app`).
 
 Docker:
@@ -201,7 +207,6 @@ You may want to:
 ├── lib                 shared go libraries
 │
 ├── scripts
-│   ├── dev-run.sh      dev server runner
 │   └── rename.sh       project rename wizard
 │
 ├── Taskfile.yml        taskfile with all tasks

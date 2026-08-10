@@ -9,9 +9,10 @@ env:
 
 tasks:
   init:
-    desc: Install all tooling and dependencies (go lint, js deps, git hooks)
+    desc: Install all tooling and dependencies (go lint, templ binary, js deps, git hooks)
     deps:
       - init.go
+      - init.templ
       - init.js
       - init.hooks
 
@@ -31,6 +32,19 @@ tasks:
     cmds:
       # installs into ./bin
       - curl -sSfL https://golangci-lint.run/install.sh | sh -s {{.GOLANGCI_LINT_VERSION}}
+
+  init.templ:
+    desc: Install the templ binary (templier spawns it from PATH) into ./bin
+    status:
+      # skip when ./bin/templ exists and matches the version pinned in go.mod
+      - |
+        test -x bin/templ && \
+        [ "$(bin/templ version)" = "$(go list -m github.com/a-h/templ | awk '{print $2}')" ]
+    cmds:
+      # templier execs `templ` from PATH (it can't use `go tool templ`), so the
+      # dev task prepends ./bin to PATH (see dev). No @version suffix needed:
+      # `go install` inside the module installs the go.mod-pinned version.
+      - GOBIN={{.ROOT_DIR}}/bin go install github.com/a-h/templ/cmd/templ
 
   init.hooks:
     desc: Symlink .hooks as the git hooks directory
@@ -84,81 +98,36 @@ tasks:
       - go tool sqlc generate
 
   dev:
-    desc: Run all watchers and the live-reloading dev server
+    desc: Run templier with all watchers and the live-reloading dev server
     deps:
       - init
     cmds:
+      # fail fast if templier.yml's hardcoded addresses drift from the env
+      # block (templier.yml has no env interpolation — see its header comment)
+      - |
+        if ! grep -qF "templier-host: \"$LIVE_RELOAD_PROXY_HOST:$LIVE_RELOAD_PROXY_PORT\"" templier.yml; then
+          echo "templier.yml templier-host doesn't match LIVE_RELOAD_PROXY_HOST:$LIVE_RELOAD_PROXY_PORT — update templier.yml" >&2
+          exit 1
+        fi
+        if ! grep -qF "host: \"http://$HOST:$PORT\"" templier.yml; then
+          echo "templier.yml app.host doesn't match HOST:$PORT — update templier.yml" >&2
+          exit 1
+        fi
       # refuse to start if orphaned watchers from a previous session hold the proxy port
       - |
         if nc -z "$LIVE_RELOAD_PROXY_HOST" "$LIVE_RELOAD_PROXY_PORT" 2>/dev/null; then
           echo "$LIVE_RELOAD_PROXY_HOST:$LIVE_RELOAD_PROXY_PORT is already in use — another dev session or orphaned watchers?" >&2
           exit 1
         fi
-      # Ctrl+C SIGINTs the whole process group; templ tears down the dev-run.sh server
-      - task --parallel dev.tailwind dev.web dev.sql dev.go
-
-  dev.tailwind:
-    desc: Watch and rebuild tailwind css
-    dir: ./web
-    cmds:
-      # ignore_error: watchers exit non-zero on Ctrl+C, which would falsely
+      # templier execs `templ` from PATH; init.templ installs it into ./bin.
+      # Ctrl+C SIGINTs the whole process group; templier tears down the app
+      # server it launched, so no stale binary/port is left behind.
+      # ignore_error: templier exits non-zero on Ctrl+C, which would falsely
       # report the stopped dev session as failed
-      - cmd: bunx tailwindcss -i tailwind.css -o static/tailwind.css --watch --minify --cwd .
-        ignore_error: true
-
-  dev.web:
-    desc: Watch and rebuild the js bundle, then notify the templ proxy. Requires templ proxy to be running.
-    dir: ./web
-    cmds:
-      # wait (max ~10s) for the templ proxy from dev.go before wgo's startup
-      # --notify-proxy fires; the notify failure is cosmetic, so proceed anyway
-      - |
-        for _ in $(seq 1 100); do
-          nc -z "$LIVE_RELOAD_PROXY_HOST" "$LIVE_RELOAD_PROXY_PORT" 2>/dev/null && break
-          sleep 0.1
-        done
-      # ignore_error: see dev.tailwind
       - cmd: |
-          go tool wgo \
-          -debounce=256ms \
-          -xdir=node_modules \
-          -xdir=tmp \
-          -xdir=static \
-          -file='\.ts$' \
-          -file='\.css$' \
-          -file='\.(png|jpe?g|gif|webp|svg|ico|ttf|woff2?|avif|mp4)$' \
-          bun run build.ts :: go tool templ generate --notify-proxy --proxybind=$LIVE_RELOAD_PROXY_HOST --proxyport=$LIVE_RELOAD_PROXY_PORT
+          export PATH="$(pwd)/bin:$PATH"
+          exec go tool templier
         ignore_error: true
-
-  dev.sql:
-    desc: Watch sql files and regenerate sqlc code
-    dir: ./db
-    cmds:
-      # ignore_error: see dev.tailwind
-      - cmd: |
-          go tool wgo \
-            -debounce=256ms \
-            -xdir=generated \
-            -file='\.sql$' \
-            go tool sqlc generate
-        ignore_error: true
-
-  dev.go:
-    desc: Run the server with templ watch mode and live reload
-    env:
-      TEMPL_DEV_MODE: true
-    cmds:
-      - |
-        go tool templ generate \
-        --log-level=info \
-        --watch \
-        --watch-pattern='(.+\.go$)|(.+\.templ$)' \
-        --path=. \
-        --proxybind=$LIVE_RELOAD_PROXY_HOST \
-        --proxyport=$LIVE_RELOAD_PROXY_PORT \
-        --proxy="http://$HOST:$PORT" \
-        --open-browser=false \
-        --cmd='./scripts/dev-run.sh'
 
   build.docker.run:
     desc: Build the docker image and run it with local data mounted
@@ -279,4 +248,4 @@ tasks:
       - rm -rf tmp/*
       - rm -rf web/node_modules
       - rm -rf web/static/*
-      - rm -f bin/app bin/dev-app
+      - rm -f bin/app
