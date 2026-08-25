@@ -2,16 +2,15 @@
 
 Opinionated template for SSR-first Go apps: templ for HTML, tailwindcss for
 styling, Lit for web components, sqlite for data, goose for migrations.
-Everything compiles into a single binary, all with live reload.
+Everything compiles into a single binary. All tooling is managed by mise.
+Live reload development loop is set up and ready to go.
 
 It's a base for hypermedia-driven applications, and pairs well with frameworks
 like [htmx](https://htmx.org/).
 
 Requirements:
 
-- [go](https://go.dev)
-- [task](https://taskfile.dev)
-- [bun](https://bun.com/) - for frontend asset building
+- [mise](https://mise.jdx.dev) for development environment setup - mise must be [activated](https://mise.jdx.dev/getting-started.html#activate-mise).
 
 ## Quickstart
 
@@ -33,10 +32,10 @@ Requirements:
 2. Planning to use it for your own project? Run the rename wizard first:
    [Renaming](#renaming).
 
-3. In the repo root, run `task dev`. It sets up the git pre-push hook and
-   starts the dev server with live reload.
+3. Run `task dev`. It sets up the git pre-push hook and starts the dev
+   server with live reload.
 
-4. Open the site at `localhost:7331`. The app itself listens on `PORT`
+4. Open the live reloading proxy at `localhost:7331`. The app itself listens on `PORT`
    (default `8080`).
 
 5. Start making changes: the application entrypoint is `cmd/serve/main.go` and
@@ -156,9 +155,6 @@ Migrations also run automatically on server startup (disable via
 code, and prettier + eslint + typescript + bundle build for the web code. The
 git pre-push hook (installed by `task init`) runs `task check` as well.
 
-The golangci-lint version is pinned in `.golangci-version` and auto-installed
-into `bin/` by `task init`, so there's nothing to install manually.
-
 ## What next
 
 You may want to:
@@ -179,7 +175,7 @@ You may want to:
 
 ```
 .
-├── .golangci.yml       lint config, version pin in .golangci-version
+├── .golangci.yml       go lint config
 │
 ├── bin                 build output, gitignored
 │
@@ -199,6 +195,8 @@ You may want to:
 ├── .hooks              git hooks, symlinked by task init
 │
 ├── lib                 shared go libraries
+│
+├── mise.toml           dev environment config
 │
 ├── scripts
 │   ├── dev-run.sh      dev server runner

@@ -9,28 +9,12 @@ env:
 
 tasks:
   init:
-    desc: Install all tooling and dependencies (go lint, js deps, git hooks)
+    desc: Install tools and js deps, symlink git hooks
+    cmds:
+      - mise install
     deps:
-      - init.go
       - init.js
       - init.hooks
-
-  init.js:
-    desc: Install js dependencies into web/node_modules
-    dir: ./web
-    cmds:
-      - bun install
-
-  init.go:
-    desc: Install the pinned golangci-lint into ./bin
-    vars:
-      GOLANGCI_LINT_VERSION:
-        sh: cat .golangci-version
-    status:
-      - test "$(./bin/golangci-lint version --short 2>/dev/null)" = "{{trimPrefix "v" .GOLANGCI_LINT_VERSION}}"
-    cmds:
-      # installs into ./bin
-      - curl -sSfL https://golangci-lint.run/install.sh | sh -s {{.GOLANGCI_LINT_VERSION}}
 
   init.hooks:
     desc: Symlink .hooks as the git hooks directory
@@ -40,31 +24,10 @@ tasks:
       - rm -rf .git/hooks
       - ln -s ../.hooks .git/hooks
 
-  update.go:
-    desc: Update go modules, tools and the pinned golangci-lint
-    cmds:
-      - go get -u tool # updates every module in the go.mod tool() directive
-      - go get -u ./...
-      - go mod tidy
-      - task: update.golangci
-
-  update.golangci:
-    # golangci-lint recommends binary installation; go install/tools-pattern
-    # installs aren't guaranteed to work
-    desc: Pin golangci-lint to the latest release (writes .golangci-version).
-    cmds:
-      - |
-        latest=$(curl -sSfL https://api.github.com/repos/golangci/golangci-lint/releases/latest \
-          | grep -o '"tag_name": *"[^"]*"' | grep -o 'v[0-9][0-9.]*')
-        [ -n "$latest" ] || { echo "could not resolve latest golangci-lint version" >&2; exit 1; }
-        echo "$latest" > .golangci-version
-        echo "pinned golangci-lint to $latest"
-
-  update.web:
-    desc: Update js dependencies to their latest versions
+  init.js:
+    desc: Install js dependencies into web/node_modules
     dir: ./web
     cmds:
-      - bun update --latest
       - bun install
 
   db.migrate:
@@ -220,8 +183,6 @@ tasks:
 
   check.go:
     desc: Go templ generate, lint and compile check (parallel)
-    deps:
-      - init.go
     cmds:
       # regenerate so the build catches drift from the committed generated code
       # TEMPL_DEV_MODE_ROOT: HACK, see gen.templ
@@ -231,7 +192,7 @@ tasks:
       - |
         go tool templ fmt -fail . & p1=$!
         go build ./... & p2=$!
-        ./bin/golangci-lint run ./... & p3=$!
+        golangci-lint run ./... & p3=$!
         ec=0
         wait $p1 || ec=$?
         wait $p2 || ec=$?
@@ -265,11 +226,9 @@ tasks:
 
   fix.go:
     desc: Auto-fix Go linting and formatting issues
-    deps:
-      - init.go
     cmds:
       - go tool templ fmt .
-      - ./bin/golangci-lint run --fix
+      - golangci-lint run --fix
 
   fix.web:
     desc: Format and lint-fix JS/TS code (prettier, eslint --fix)
@@ -280,10 +239,36 @@ tasks:
       - bunx prettier --write .
       - bunx eslint --fix .
 
+  update:
+    desc: Update everything (mise tools, go modules, js deps)
+    deps:
+      - update.tools
+      - update.go
+      - update.web
+
+  update.go:
+    desc: Update go modules and tools
+    cmds:
+      - go get -u tool # updates every module in the go.mod tool() directive
+      - go get -u ./...
+      - go mod tidy
+
+  update.tools:
+    desc: Bump the project's mise-managed tools to their latest versions (writes mise.toml)
+    cmds:
+      - mise upgrade --bump --local
+
+  update.web:
+    desc: Update js dependencies to their latest versions
+    dir: ./web
+    cmds:
+      - bun update --latest
+      - bun install
+
   clean:
     desc: Wipe build artifacts and local caches
     cmds:
-      - ./bin/golangci-lint cache clean 2>/dev/null || true
+      - golangci-lint cache clean 2>/dev/null || true
       - rm -rf tmp/*
       - rm -rf web/node_modules
       - rm -rf web/static/*

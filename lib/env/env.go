@@ -1,7 +1,6 @@
 package env
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 )
@@ -23,18 +22,16 @@ func init() {
 	migrate, _ := strconv.ParseBool(os.Getenv("DB_MIGRATE_ON_START"))
 	Vars = &Env{
 		DbMigrateOnStart: migrate,
-		Host:             GetRequiredEnv("HOST"),
-		Port:             GetRequiredEnv("PORT"),
+		Host:             GetEnv("HOST", "localhost"),
+		Port:             GetEnv("PORT", "8080"),
 		LiveReloadHost:   os.Getenv("LIVE_RELOAD_PROXY_HOST"),
 		LiveReloadPort:   os.Getenv("LIVE_RELOAD_PROXY_PORT"),
 	}
 }
 
-func GetRequiredEnv(name string) string {
-	val := os.Getenv(name)
-	if val == "" {
-		fmt.Printf("Missing required environment variable: '%s'\n", name)
-		os.Exit(1)
+func GetEnv(name string, fallback string) string {
+	if val := os.Getenv(name); val != "" {
+		return val
 	}
-	return val
+	return fallback
 }

@@ -127,7 +127,13 @@ echo ""
 echo "Cleaning caches, regenerating, formatting, and checking..."
 task clean
 task init
-( cd web && command -v bun > /dev/null 2>&1 && bun run build.ts) || echo "  (skipped web bundle: bun not available)"
+# clean removes web/node_modules, reinstall before bundling
+if command -v bun > /dev/null 2>&1; then
+    task init.js
+    ( cd web && bun run build.ts ) || echo "  (web bundle failed)"
+else
+    echo "  (skipped web bundle: bun not available)"
+fi
 ( go tool templ generate > /dev/null 2>&1) || echo "  (skipped templ regen: templ tool unavailable)"
 task fix
 task check

@@ -31,7 +31,7 @@ kill_old() {
 if ! go build -tags=noembed -gcflags="-N -l" -o "$BIN" ./cmd/serve 2> >(sed -E "/\.go:/s/.*/${RED}&${RESET}/" >&2); then
     # Kill old server on failure so stale binary doesn't mislead.
     kill_old
-    echo "${RED}build failed — server stopped${RESET}" >&2
+    echo "${RED}build failed - server stopped${RESET}" >&2
     exit 1
 fi
 
