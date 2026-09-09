@@ -11,10 +11,10 @@ tasks:
   init:
     desc: Install tools and js deps, symlink git hooks
     cmds:
+      # tools first: bun and go (used by the tasks below) come from mise
       - mise install
-    deps:
-      - init.js
-      - init.hooks
+      - task: init.js
+      - task: init.hooks
 
   init.hooks:
     desc: Symlink .hooks as the git hooks directory
@@ -185,10 +185,8 @@ tasks:
     desc: Go templ generate, lint and compile check (parallel)
     cmds:
       # regenerate so the build catches drift from the committed generated code
-      # TEMPL_DEV_MODE_ROOT: HACK, see gen.templ
-      # (https://github.com/a-h/templ/pull/1434)
-      - TEMPL_DEV_MODE_ROOT=tmp/templ-oneoff-cache go tool templ generate
-      - task gen.db
+      - task: gen.templ
+      - task: gen.db
       - |
         go tool templ fmt -fail . & p1=$!
         go build ./... & p2=$!
@@ -229,6 +227,9 @@ tasks:
     cmds:
       - go tool templ fmt .
       - golangci-lint run --fix
+      # --fix can leave code uncompilable (e.g. errorlint adds errors.As
+      # without the import); verify the tree still builds
+      - go build ./...
 
   fix.web:
     desc: Format and lint-fix JS/TS code (prettier, eslint --fix)
@@ -270,6 +271,7 @@ tasks:
     cmds:
       - golangci-lint cache clean 2>/dev/null || true
       - rm -rf tmp/*
+      - rm -rf web/tmp/*
       - rm -rf web/node_modules
       - rm -rf web/static/*
       - rm -f bin/app bin/dev-app

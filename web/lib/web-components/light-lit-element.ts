@@ -1,10 +1,10 @@
 import { LitElement } from 'lit'
 
 /**
- * Like LitElement, but without shadow dom. Useful for basic things that
- * DOES NOT USE SLOTS. Slots needs shadow dom in order to work. Examples
- * of things that are using this class are icons. Then tailwind's group css
- * functionality works out of the box.
+ * Like LitElement, but renders into the element itself instead of a shadow
+ * root. Use it for components that don't need slots (slots require shadow DOM),
+ * such as icons. Rendering in the light DOM also lets Tailwind's `group`
+ * variants work.
  */
 export class LightLitElement extends LitElement {
   protected createRenderRoot(): HTMLElement | DocumentFragment {

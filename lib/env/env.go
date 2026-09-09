@@ -5,23 +5,22 @@ import (
 	"strconv"
 )
 
-type Env = struct {
+type Env struct {
 	// Set DB_MIGRATE_ON_START=true (or 1, t, etc.) to enable. Defaults to false.
-	DbMigrateOnStart bool
+	DBMigrateOnStart bool
 	Host             string
 	Port             string
-	// For logging purposes only. Not needed in production, so they're optional.
+	// Live reload values are used for logging only, so they're optional.
 	LiveReloadHost string
-	// For logging purposes only. Not needed in production, so they're optional.
 	LiveReloadPort string
 }
 
-var Vars *Env
+var Vars Env
 
 func init() {
 	migrate, _ := strconv.ParseBool(os.Getenv("DB_MIGRATE_ON_START"))
-	Vars = &Env{
-		DbMigrateOnStart: migrate,
+	Vars = Env{
+		DBMigrateOnStart: migrate,
 		Host:             GetEnv("HOST", "localhost"),
 		Port:             GetEnv("PORT", "8080"),
 		LiveReloadHost:   os.Getenv("LIVE_RELOAD_PROXY_HOST"),

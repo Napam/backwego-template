@@ -17,7 +17,7 @@ const buttonClass = twJoin(
  */
 @customElement('theme-button')
 export class ThemeButton extends LightLitElement {
-  @property({ type: String }) override className = ''
+  @property({ type: String }) buttonClass = ''
   @state() private theme: Theme = 'light'
 
   private handleThemeChange = ((e: CustomEvent<Theme>) => {
@@ -45,7 +45,7 @@ export class ThemeButton extends LightLitElement {
     const label = this.theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'
     return html`
       <button
-        class=${buttonClass + (this.className ? ' ' + this.className : '')}
+        class=${buttonClass + (this.buttonClass ? ' ' + this.buttonClass : '')}
         aria-label=${label}
         title=${label}
         @click=${this.handleClick}

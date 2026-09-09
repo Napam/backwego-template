@@ -1,10 +1,15 @@
+// Package hashfs serves static files under a content-addressed name so they
+// can be cached forever: "static/app.js" is served as "static/app-<hash>.js",
+// and changing the file changes the URL.
+//
+// Adapted from github.com/benbjohnson/hashfs (MIT, Copyright (c) 2020 Ben
+// Johnson); see LICENSE in this directory.
 package hashfs
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -15,171 +20,123 @@ import (
 	"sync"
 )
 
-// HashLength is the number of hex characters to use for the hash suffix.
-// SHA-256 produces 64 hex chars, but we truncate for shorter filenames.
-// 16 chars (8 bytes) should provide sufficient collision resistance for typical use.
-const HashLength = 16
+// hashLength is how many hex characters of the SHA-256 sum to keep in the
+// filename. SHA-256 is 64 hex chars; a shorter name is easier to read and
+// still collision-safe for static assets. Must be 1..64.
+const hashLength = 16
 
-// Ensure file system implements interface.
-var _ fs.FS = (*FS)(nil)
+// hashedSuffix matches the trailing "-<hash>" of a hashed name.
+var hashedSuffix = regexp.MustCompile(`-[0-9a-f]{` + strconv.Itoa(hashLength) + `}$`)
 
-// FS represents an fs.FS file system that can optionally use content addressable
-// hashes in the filename. This allows the caller to aggressively cache the
-// data since the filename will change if the data changes.
+// cacheForever is sent for hashed URLs. The URL changes whenever the file does,
+// so browsers can cache the response for a year.
+const cacheForever = "public, max-age=31536000"
+
+// FS resolves content-hashed names for an underlying file system.
 type FS struct {
 	fsys fs.FS
 
-	mu sync.RWMutex
-	m  map[string]string    // lookup (path to hash path)
-	r  map[string][2]string // reverse lookup (hash path to path)
+	mu     sync.RWMutex
+	hashed map[string]string // original path -> hashed path
 }
 
+// Ensure FS implements fs.FS.
+var _ fs.FS = (*FS)(nil)
+
+// NewFS wraps fsys and caches the hashed name of each file it looks up.
 func NewFS(fsys fs.FS) *FS {
-	return &FS{
-		fsys: fsys,
-		m:    make(map[string]string),
-		r:    make(map[string][2]string),
-	}
+	return &FS{fsys: fsys, hashed: make(map[string]string)}
 }
 
-// Open returns a reference to the named file.
-// If name is a hash name then the underlying file is used.
+// HashName returns name with its content hash inserted before the extension,
+// for example "app.js" -> "app-<hash>.js". It returns name unchanged if the
+// file cannot be read.
+func (fsys *FS) HashName(name string) string {
+	fsys.mu.RLock()
+	hashed, ok := fsys.hashed[name]
+	fsys.mu.RUnlock()
+	if ok {
+		return hashed
+	}
+
+	data, err := fs.ReadFile(fsys.fsys, name)
+	if err != nil {
+		return name
+	}
+	sum := sha256.Sum256(data)
+	hashed = insertHash(name, hex.EncodeToString(sum[:])[:hashLength])
+
+	fsys.mu.Lock()
+	fsys.hashed[name] = hashed
+	fsys.mu.Unlock()
+	return hashed
+}
+
+// Open opens name, resolving a hashed name to the file it addresses.
 func (fsys *FS) Open(name string) (fs.File, error) {
 	f, _, err := fsys.open(name)
 	return f, err
 }
 
-func (fsys *FS) open(name string) (_ fs.File, hash string, err error) {
-	// Parse filename to see if it contains a hash.
-	// If so, check if hash name matches.
-	base, hash := fsys.ParseName(name)
-	if hash != "" && fsys.HashName(base) == name {
-		name = base
+// open also reports the hash contained in a hashed name, which the file server
+// uses to decide how long the response may be cached.
+func (fsys *FS) open(name string) (fs.File, string, error) {
+	base, hash := parseHash(name)
+	if hash == "" || fsys.HashName(base) != name {
+		// Not a hashed name, or the hash does not match: serve it literally.
+		base, hash = name, ""
 	}
-
-	f, err := fsys.fsys.Open(name)
+	f, err := fsys.fsys.Open(base)
 	return f, hash, err
 }
 
-// HashName returns the hash name for a path, if exists.
-// Otherwise returns the original path.
-func (fsys *FS) HashName(name string) string {
-	// Lookup cached formatted name, if exists.
-	fsys.mu.RLock()
-	if s := fsys.m[name]; s != "" {
-		fsys.mu.RUnlock()
-		return s
-	}
-	fsys.mu.RUnlock()
-
-	// Read file contents. Return original filename if we receive an error.
-	buf, err := fs.ReadFile(fsys.fsys, name)
-	if err != nil {
-		return name
-	}
-
-	// Compute hash and build filename.
-	hash := sha256.Sum256(buf)
-	hashhex := hex.EncodeToString(hash[:HashLength/2]) // 2 hex chars per byte
-	hashname := FormatName(name, hashhex)
-
-	// Store in lookups.
-	fsys.mu.Lock()
-	fsys.m[name] = hashname
-	fsys.r[hashname] = [2]string{name, hashhex}
-	fsys.mu.Unlock()
-
-	return hashname
-}
-
-// FormatName returns a hash name that inserts hash before the filename's
-// extension. If no extension exists on filename then the hash is appended.
-// Returns blank string the original filename if hash is blank. Returns a blank
-// string if the filename is blank.
-func FormatName(filename, hash string) string {
-	if filename == "" {
-		return ""
-	} else if hash == "" {
-		return filename
-	}
-
-	dir, base := path.Split(filename)
+// insertHash inserts hash before name's extension:
+// "app.js" -> "app-<hash>.js", "app" -> "app-<hash>",
+// "app.tar.gz" -> "app-<hash>.tar.gz".
+func insertHash(name, hash string) string {
+	dir, base := path.Split(name)
 	if i := strings.Index(base, "."); i != -1 {
-		return path.Join(dir, fmt.Sprintf("%s-%s%s", base[:i], hash, base[i:]))
+		base = base[:i] + "-" + hash + base[i:]
+	} else {
+		base += "-" + hash
 	}
-	return path.Join(dir, fmt.Sprintf("%s-%s", base, hash))
+	return dir + base
 }
 
-// ParseName splits formatted hash filename into its base & hash components.
-func (fsys *FS) ParseName(filename string) (base, hash string) {
-	fsys.mu.RLock()
-	defer fsys.mu.RUnlock()
+// parseHash splits a hashed name into its base path and hash. It returns an
+// empty hash if name is not in hashed form.
+func parseHash(name string) (base, hash string) {
+	dir, file := path.Split(name)
 
-	if hashed, ok := fsys.r[filename]; ok {
-		return hashed[0], hashed[1]
+	head, ext := file, ""
+	if i := strings.Index(file, "."); i != -1 {
+		head, ext = file[:i], file[i:]
 	}
-
-	return ParseName(filename)
-}
-
-// ParseName splits formatted hash filename into its base & hash components.
-func ParseName(filename string) (base, hash string) {
-	if filename == "" {
+	if !hashedSuffix.MatchString(head) {
 		return "", ""
 	}
 
-	dir, base := path.Split(filename)
-
-	// Extract pre-hash & extension.
-	pre, ext := base, ""
-	if i := strings.Index(base, "."); i != -1 {
-		pre = base[:i]
-		ext = base[i:]
-	}
-
-	// If prehash doesn't contain the hash, then exit.
-	if !hashSuffixRegex.MatchString(pre) {
-		return filename, ""
-	}
-
-	// Extract hash from end: hash length + 1 for the dash separator
-	hashWithDash := HashLength + 1
-	return path.Join(dir, pre[:len(pre)-hashWithDash]+ext), pre[len(pre)-HashLength:]
+	hash = head[len(head)-hashLength:]
+	return dir + head[:len(head)-hashLength-1] + ext, hash
 }
 
-var hashSuffixRegex = regexp.MustCompile(`-[0-9a-f]{` + strconv.Itoa(HashLength) + `}`)
-
-// FileServer returns an http.Handler for serving FS files. It provides a
-// simplified implementation of http.FileServer which is used to aggressively
-// cache files on the client since the file hash is in the filename.
-//
-// Because FileServer is focused on small known path files, several features
-// of http.FileServer have been removed including canonicalizing directories,
-// defaulting index.html pages, precondition checks, & content range headers.
-func FileServer(fsys fs.FS) http.Handler {
-	hfsys, ok := fsys.(*FS)
-	if !ok {
-		hfsys = NewFS(fsys)
-	}
-	return &fsHandler{fsys: hfsys}
+// FileServer returns an http.Handler that serves fsys. Files requested by
+// their hashed name get a long-lived cache header; other files do not.
+func FileServer(fsys *FS) http.Handler {
+	return &fileServer{fsys: fsys}
 }
 
-type fsHandler struct {
+type fileServer struct {
 	fsys *FS
 }
 
-func (h *fsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Clean up filename based on URL path.
-	filename := r.URL.Path
-	if filename == "/" {
-		filename = "."
-	} else {
-		filename = strings.TrimPrefix(filename, "/")
+func (h *fileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+	if name == "" {
+		name = "."
 	}
-	filename = path.Clean(filename)
 
-	// Read file from attached file system.
-	f, hash, err := h.fsys.open(filename)
+	f, hash, err := h.fsys.open(name)
 	if errors.Is(err, fs.ErrNotExist) {
 		http.Error(w, "404 page not found", http.StatusNotFound)
 		return
@@ -189,34 +146,29 @@ func (h *fsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { _ = f.Close() }()
 
-	// Fetch file info. Disallow directories from being displayed.
-	fi, err := f.Stat()
+	// Directories are not listed.
+	info, err := f.Stat()
 	if err != nil {
 		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
 		return
-	} else if fi.IsDir() {
+	} else if info.IsDir() {
 		http.Error(w, "403 Forbidden", http.StatusForbidden)
 		return
 	}
 
-	// Cache the file aggressively if the file contains a hash.
 	if hash != "" {
-		w.Header().Set("Cache-Control", `public, max-age=31536000`)
-		w.Header().Set("ETag", "\""+hash+"\"")
+		w.Header().Set("Cache-Control", cacheForever)
+		w.Header().Set("ETag", `"`+hash+`"`)
 	}
 
-	// Flush header and write content.
-	switch f := f.(type) {
-	case io.ReadSeeker:
-		http.ServeContent(w, r, filename, fi.ModTime(), f)
-	default:
-		// Set content length.
-		w.Header().Set("Content-Length", strconv.FormatInt(fi.Size(), 10))
+	if rs, ok := f.(io.ReadSeeker); ok {
+		http.ServeContent(w, r, name, info.ModTime(), rs)
+		return
+	}
 
-		// Flush header and write content.
-		w.WriteHeader(http.StatusOK)
-		if r.Method != "HEAD" {
-			_, _ = io.Copy(w, f)
-		}
+	w.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
+	w.WriteHeader(http.StatusOK)
+	if r.Method != http.MethodHead {
+		_, _ = io.Copy(w, f)
 	}
 }

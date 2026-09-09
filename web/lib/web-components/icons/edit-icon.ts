@@ -12,6 +12,7 @@ export class EditIcon extends LightLitElement {
     return html`
       <svg
         class=${twMerge('size-6 text-gray-600 dark:text-gray-200', this.svgClass)}
+        aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"
         width="32"
         height="32"

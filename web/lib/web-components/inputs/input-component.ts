@@ -1,5 +1,5 @@
 import { StyledLitElement } from '../styled-lit-element'
-import { html, type PropertyValues } from 'lit'
+import { html, nothing, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { twJoin, twMerge } from 'tailwind-merge'
 import { focusWithinClass } from '../common'
@@ -29,7 +29,7 @@ export class InputComponent extends StyledLitElement {
 
   @property({ type: String }) divClass = ''
   @property({ type: String }) inputClass = ''
-  @property({ type: String }) id = ''
+  @property({ type: String, attribute: 'aria-label' }) ariaLabel = ''
   @property({ type: String }) name = ''
   @property({ type: String }) placeholder = ''
   @property({ type: String }) type = 'text'
@@ -65,11 +65,11 @@ export class InputComponent extends StyledLitElement {
         <slot name="title"></slot>
         <input
           class=${twMerge(defaultInputClass, this.inputClass, this.disabled && disabledClass)}
-          .id=${this.id}
           .type=${this.type}
           .value=${this.value}
           .disabled=${this.disabled}
           .placeholder=${this.placeholder}
+          aria-label=${this.ariaLabel || nothing}
           @input=${this.handleInput}
           @change=${this.handleInput}
         />

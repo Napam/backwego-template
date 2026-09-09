@@ -43,7 +43,7 @@ func main() {
 		}
 	}()
 
-	if env.Vars.DbMigrateOnStart {
+	if env.Vars.DBMigrateOnStart {
 		_, err = db.RunMigrations(
 			context.Background(),
 			backwegotemplate.MigrationsFS,

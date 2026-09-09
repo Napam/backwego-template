@@ -2,7 +2,9 @@
 SELECT
   *
 FROM
-  users;
+  users
+ORDER BY
+  id;
 
 -- name: GetUser :one
 SELECT

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,159 +15,133 @@ import (
 const (
 	reset = "\033[0m"
 
-	BLACK         = 30
-	RED           = 31
-	GREEN         = 32
-	YELLOW        = 33
-	BLUE          = 34
-	MAGENTA       = 35
-	CYAN          = 36
-	DARK_GRAY     = 90
-	LIGHT_GRAY    = 37
-	LIGHT_RED     = 91
-	LIGHT_GREEN   = 92
-	LIGHT_YELLOW  = 93
-	LIGHT_BLUE    = 94
-	LIGHT_MAGENTA = 95
-	LIGHT_CYAN    = 96
-	LIMEGREEN     = 92
-	WHITE         = 97
+	cyan        = 36
+	darkGray    = 90
+	lightRed    = 91
+	lightGreen  = 92
+	lightYellow = 93
+	lightBlue   = 94
+	white       = 97
 
 	timeFormat = "2006-01-02T15:04:05-07:00"
 )
 
 func colorize(colorCode int, v string) string {
-	return fmt.Sprintf("\033[%sm%s%s", strconv.Itoa(colorCode), v, reset)
+	return fmt.Sprintf("\033[%dm%s%s", colorCode, v, reset)
 }
 
-type HandlerContext struct {
+// handlerContext renders human-readable, colorized log lines to stdout. It
+// delegates attribute handling to an inner JSON handler and reformats the
+// result, so groups and WithAttrs keep working without reimplementing them.
+type handlerContext struct {
 	h slog.Handler
 	b *bytes.Buffer
 	m *sync.Mutex
 }
 
-func (handlerContext *HandlerContext) Enabled(ctx context.Context, level slog.Level) bool {
-	return handlerContext.h.Enabled(ctx, level)
+func (hc *handlerContext) Enabled(ctx context.Context, level slog.Level) bool {
+	return hc.h.Enabled(ctx, level)
 }
 
-func (handlerContext *HandlerContext) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &HandlerContext{
-		h: handlerContext.h.WithAttrs(attrs),
-		b: handlerContext.b,
-		m: handlerContext.m,
+func (hc *handlerContext) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &handlerContext{h: hc.h.WithAttrs(attrs), b: hc.b, m: hc.m}
+}
+
+func (hc *handlerContext) WithGroup(name string) slog.Handler {
+	return &handlerContext{h: hc.h.WithGroup(name), b: hc.b, m: hc.m}
+}
+
+// formatAttrs renders attrs in sorted key order so log lines stay stable across
+// runs (Go randomizes map iteration order).
+func formatAttrs(attrs map[string]any) string {
+	keys := make([]string, 0, len(attrs))
+	for k := range attrs {
+		keys = append(keys, k)
 	}
-}
+	sort.Strings(keys)
 
-func (handlerContext *HandlerContext) WithGroup(name string) slog.Handler {
-	return &HandlerContext{
-		h: handlerContext.h.WithGroup(name),
-		b: handlerContext.b,
-		m: handlerContext.m,
-	}
-}
-
-func StringifyMap(m map[string]any) string {
 	var sb strings.Builder
-	for k, v := range m {
-		if s, ok := v.(string); ok {
-			escaped := strings.ReplaceAll(s, `"`, `\"`)
-			fmt.Fprintf(&sb, "%s=\"%s\" ", colorize(LIGHT_BLUE, k), colorize(LIMEGREEN, escaped))
-		} else {
-			fmt.Fprintf(
-				&sb,
-				"%s=%v ",
-				colorize(LIGHT_BLUE, k),
-				colorize(LIMEGREEN, fmt.Sprintf("%v", v)),
-			)
+	for _, k := range keys {
+		val := fmt.Sprint(attrs[k])
+		if s, ok := attrs[k].(string); ok {
+			val = strconv.Quote(s)
 		}
+		fmt.Fprintf(&sb, "%s=%s ", colorize(lightBlue, k), colorize(lightGreen, val))
 	}
 	return sb.String()
 }
 
-func (handlerContext *HandlerContext) Handle(ctx context.Context, record slog.Record) error {
+func (hc *handlerContext) Handle(ctx context.Context, record slog.Record) error {
 	level := record.Level.String()
 	switch record.Level {
 	case slog.LevelDebug:
-		level = colorize(DARK_GRAY, level)
+		level = colorize(darkGray, level)
 	case slog.LevelInfo:
-		level = colorize(CYAN, level)
+		level = colorize(cyan, level)
 	case slog.LevelWarn:
-		level = colorize(LIGHT_YELLOW, level)
+		level = colorize(lightYellow, level)
 	case slog.LevelError:
-		level = colorize(LIGHT_RED, level)
+		level = colorize(lightRed, level)
 	}
+	level = "[" + level + "]"
 
-	level = fmt.Sprintf("[%s]", level)
-	time := colorize(DARK_GRAY, record.Time.Format(timeFormat))
-	message := colorize(WHITE, record.Message)
+	time := colorize(darkGray, record.Time.Format(timeFormat))
+	message := colorize(white, record.Message)
 
-	attrs, err := handlerContext.extractAttrs(ctx, record)
+	attrs, err := hc.extractAttrs(ctx, record)
 	if err != nil {
 		return err
 	}
 	if len(attrs) == 0 {
-		fmt.Println(
-			time,
-			level,
-			message,
-		)
+		fmt.Println(time, level, message)
 		return nil
 	}
 
-	fmt.Println(
-		time,
-		level,
-		message,
-		StringifyMap(attrs),
-	)
-
+	fmt.Println(time, level, message, formatAttrs(attrs))
 	return nil
 }
 
-func (handlerContext *HandlerContext) extractAttrs(
-	ctx context.Context,
-	r slog.Record,
-) (map[string]any, error) {
-	handlerContext.m.Lock()
+func (hc *handlerContext) extractAttrs(ctx context.Context, r slog.Record) (map[string]any, error) {
+	hc.m.Lock()
 	defer func() {
-		handlerContext.b.Reset()
-		handlerContext.m.Unlock()
+		hc.b.Reset()
+		hc.m.Unlock()
 	}()
-	if err := handlerContext.h.Handle(ctx, r); err != nil {
-		return nil, fmt.Errorf("error when calling inner handler's Handle: %w", err)
+
+	if err := hc.h.Handle(ctx, r); err != nil {
+		return nil, fmt.Errorf("calling inner handler: %w", err)
 	}
 
 	var attrs map[string]any
-	err := json.Unmarshal(handlerContext.b.Bytes(), &attrs)
-	if err != nil {
-		return nil, fmt.Errorf("error when unmarshaling inner handler's Handle result: %w", err)
+	if err := json.Unmarshal(hc.b.Bytes(), &attrs); err != nil {
+		return nil, fmt.Errorf("decoding inner handler output: %w", err)
 	}
 	return attrs, nil
 }
 
-func NewHandler(opts *slog.HandlerOptions) *HandlerContext {
+func NewHandler(opts *slog.HandlerOptions) slog.Handler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}
 	}
-	b := &bytes.Buffer{}
-	return &HandlerContext{
-		b: b,
-		h: slog.NewJSONHandler(b, &slog.HandlerOptions{
+	buf := &bytes.Buffer{}
+	return &handlerContext{
+		b: buf,
+		h: slog.NewJSONHandler(buf, &slog.HandlerOptions{
 			Level:       opts.Level,
 			AddSource:   opts.AddSource,
-			ReplaceAttr: supressDefaults(opts.ReplaceAttr),
+			ReplaceAttr: suppressDefaults(opts.ReplaceAttr),
 		}),
 		m: &sync.Mutex{},
 	}
 }
 
-func supressDefaults(
+// suppressDefaults drops the time, level, and message keys from the inner JSON
+// handler output, since Handle renders those directly from the record.
+func suppressDefaults(
 	next func([]string, slog.Attr) slog.Attr,
 ) func([]string, slog.Attr) slog.Attr {
 	return func(groups []string, a slog.Attr) slog.Attr {
-		if a.Key == slog.TimeKey ||
-			a.Key == slog.LevelKey ||
-			a.Key == slog.MessageKey {
+		if a.Key == slog.TimeKey || a.Key == slog.LevelKey || a.Key == slog.MessageKey {
 			return slog.Attr{}
 		}
 		if next == nil {

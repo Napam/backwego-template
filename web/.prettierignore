@@ -1,0 +1,4 @@
+# Generated or scratch output — not linted or formatted.
+# (Prettier also respects .gitignore; this makes the contract explicit.)
+tmp/
+static/

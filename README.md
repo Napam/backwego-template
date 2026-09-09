@@ -146,14 +146,16 @@ Migrations live in `db/migrations/` (goose format), queries in
 3. Add or update queries in `db/queries/`
 4. `task gen.db` regenerates type-safe Go code into `db/generated/sqlc/`
 
-Migrations also run automatically on server startup (disable via
-`DB_MIGRATE_ON_START=false`).
+Migrations also run on server startup when `DB_MIGRATE_ON_START=true` (set by
+`task dev` and the Docker image; the binary defaults to false).
 
 ## Linting and checks
 
-`task check` runs all checks in parallel: compile + golangci-lint for the go
-code, and prettier + eslint + typescript + bundle build for the web code. The
-git pre-push hook (installed by `task init`) runs `task check` as well.
+`task check` regenerates templ and sqlc code, then runs `templ fmt -fail`,
+compile and golangci-lint for the go code, plus prettier, eslint, typescript
+and a bundle build for the web code. `task fix` auto-fixes the formatting and
+lint issues it can. The git pre-push hook (installed by `task init`) runs
+`task check` as well.
 
 ## What next
 
@@ -165,8 +167,8 @@ You may want to:
   All play nice with web components. See https://htmx.org/essays/alternatives/
   for more options.
 - **Swap the database:** change the driver and connection string in
-  `cmd/serve/main.go` to use Postgres, MySQL, or another driver, then update
-  the sqlc config at `./db/sqlc.yaml`
+  `cmd/serve/main.go` and the goose dialect in `db/migrate.go` to use Postgres,
+  MySQL, or another driver, then update the sqlc config at `./db/sqlc.yaml`
 - **Switch to JSON logging:** replace `logging.NewHandler(...)` with
   `slog.NewJSONHandler(os.Stdout, ...)` in `cmd/serve/main.go` for
   production-ready JSON logs
@@ -223,6 +225,17 @@ optimized it for my own tools and workflows:
 2. Being very CLI-first
 3. UNIX first, I have no plans of supporting Windows. It may work out of the box
    anyways, I haven't tested.
+
+## Known issues
+
+- Running a one-off `templ generate` (e.g. from `task check`) while `task dev`
+  is running deletes the watch session's dev-mode `_templ.txt` files, and every
+  page then fails to render until the dev server restarts. The `gen.templ` task
+  works around it by pointing one-off generates at a scratch cache root
+  (`tmp/templ-oneoff-cache`), so their exit-time cleanup can't touch the watch
+  session's cache. Upstream fix pending:
+  [a-h/templ#1434](https://github.com/a-h/templ/pull/1434). This is the blocker
+  for tagging a named release of the template.
 
 ## License
 

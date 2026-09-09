@@ -41,6 +41,8 @@ SELECT
   id, name
 FROM
   users
+ORDER BY
+  id
 `
 
 func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {

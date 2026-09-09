@@ -36,3 +36,8 @@ formatters:
       # module imports instead of stdlib (dot-less module name); update this
       # if you rename the module
       module-path: backwegotemplate
+
+issues:
+  # default max-same-issues (3) silently undercounts repeated issues;
+  # report everything so `check` output reflects the real scope
+  max-same-issues: 0
