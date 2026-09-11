@@ -2,9 +2,9 @@ version: "3"
 
 env:
   HOST: "localhost"
-  PORT: "8080"
+  PORT: "6900"
   LIVE_RELOAD_PROXY_HOST: "localhost"
-  LIVE_RELOAD_PROXY_PORT: "7331"
+  LIVE_RELOAD_PROXY_PORT: "6901"
   DB_MIGRATE_ON_START: "true"
 
 tasks:

@@ -35,8 +35,8 @@ Requirements:
 3. Run `task dev`. It sets up the git pre-push hook and starts the dev
    server with live reload.
 
-4. Open the live reloading proxy at `localhost:7331`. The app itself listens on `PORT`
-   (default `8080`).
+4. Open the live reloading proxy at `localhost:6901`. The app itself listens on `PORT`
+   (default `6900`).
 
 5. Start making changes: the application entrypoint is `cmd/serve/main.go` and
    the frontend root page is `web/pages/root.templ`.
