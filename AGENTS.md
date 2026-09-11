@@ -15,7 +15,7 @@
 - JS bundling (see `web/build.ts`):
   - `web/lib/**/*.ts` → single shared `static/bundle.js`, loaded synchronously
     in `<head>` (registers all web components before body parses).
-  - `.ts` files in any other top-level dir (e.g. `web/root/root.ts`, next to
+  - `.ts` files in any other top-level dir (e.g. `web/pages/root.ts`, next to
     its `.templ`) → per-file page bundles in `static/page-files/<dir>/`,
     loaded per page with `<script defer>`.
   - Page files: avoid importing from `lib/`. Small utility imports are fine,

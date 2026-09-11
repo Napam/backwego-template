@@ -57,7 +57,7 @@ async function bundleLib() {
 const nonPageDirs = new Set(['assets', 'lib', 'node_modules', 'static', 'tmp'])
 
 /**
- * One bundle per page dir into page-files/ (root/root.ts → page-files/root/root.js).
+ * One bundle per page dir into page-files/ (pages/root.ts → page-files/pages/root.js).
  * Avoid importing from lib/: small utilities are fine, but each import
  * duplicates code into the page bundle (iife, no code splitting). Don't
  * import web components from lib/: bundle.js already registered them, so

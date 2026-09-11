@@ -1,4 +1,4 @@
-package root
+package pages
 
 import (
 	"backwegotemplate"
@@ -16,7 +16,7 @@ templ RootPage(users []sqlc.User, editID int64) {
 			<title>Backwego Template</title>
 			<link rel="stylesheet" id="tailwindcss" href={ backwegotemplate.StaticRootPath("static/tailwind.css") }/>
 			<script src={ backwegotemplate.StaticRootPath("static/bundle.js") }></script>
-			<script defer src={ backwegotemplate.StaticRootPath("static/page-files/root/root.js") }></script>
+			<script defer src={ backwegotemplate.StaticRootPath("static/page-files/pages/root.js") }></script>
 		</head>
 		<body
 			class="min-h-screen bg-gray-50 font-sans text-gray-700 dark:bg-neutral-900 dark:text-neutral-300"

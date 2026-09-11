@@ -13,7 +13,7 @@ import (
 	"backwegotemplate/db/generated/sqlc"
 	"backwegotemplate/lib/env"
 	"backwegotemplate/lib/logging"
-	"backwegotemplate/web/root"
+	"backwegotemplate/web/pages"
 	"github.com/go-chi/chi/v5"
 	_ "modernc.org/sqlite"
 )
@@ -63,7 +63,7 @@ func main() {
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		users, _ := queries.GetAllUsers(r.Context())
 		editID, _ := strconv.ParseInt(r.URL.Query().Get("edit"), 10, 64)
-		_ = root.RootPage(users, editID).Render(r.Context(), w)
+		_ = pages.RootPage(users, editID).Render(r.Context(), w)
 	})
 
 	router.Post("/users", func(w http.ResponseWriter, r *http.Request) {

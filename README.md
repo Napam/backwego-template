@@ -39,7 +39,7 @@ Requirements:
    (default `8080`).
 
 5. Start making changes: the application entrypoint is `cmd/serve/main.go` and
-   the frontend root page is `web/root/root.templ`.
+   the frontend root page is `web/pages/root.templ`.
 
 For production build: `task build.go` (output in `bin/app`).
 
@@ -96,12 +96,12 @@ two kinds of bundles:
   synchronously in `<head>` so all custom elements are registered before the
   body parses.
 - **Page bundles:** a `.ts` file in any other `web/` subdirectory (e.g.
-  `web/root/root.ts`, next to its `.templ`) becomes its own bundle at
+  `web/pages/root.ts`, next to its `.templ`) becomes its own bundle at
   `static/page-files/<dir>/<name>.js`. Load it on just that page:
 
   ```templ
   <script src={ backwegotemplate.StaticRootPath("static/bundle.js") }></script>
-  <script defer src={ backwegotemplate.StaticRootPath("static/page-files/root/root.js") }></script>
+  <script defer src={ backwegotemplate.StaticRootPath("static/page-files/pages/root.js") }></script>
   ```
 
 Page files are plain top-level browser code, no exports needed. Avoid
@@ -217,7 +217,7 @@ You may want to:
     ├── assets          committed static assets (→ static/assets/)
     ├── build.ts        script to build web assets, outputs to web/static
     ├── lib             shared typescript libraries (→ static/bundle.js)
-    ├── root            templ root page (optional .ts → static/page-files/root/)
+    ├── pages           templ pages (optional .ts → static/page-files/pages/)
     └── static          build artifacts (bundle.js, page-files/, tailwind.css), gitignored
 ```
 
