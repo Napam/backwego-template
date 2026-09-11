@@ -231,6 +231,14 @@ optimized it for my own tools and workflows:
 3. UNIX first, I have no plans of supporting Windows. It may work out of the box
    anyways, I haven't tested.
 
+## Examples
+
+- I have created an AI chat harness at https://github.com/Napam/chatwego to dog-food
+  backwego-template
+
+- My own home page is based on backwego-template:
+  https://github.com/Napam/naphat. Page itself is hosted at https://naphat.no
+
 ## Known issues
 
 - Running a one-off `templ generate` (e.g. from `task check`) while `task dev`
