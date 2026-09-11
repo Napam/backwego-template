@@ -13,10 +13,10 @@ import prettier from 'eslint-config-prettier'
 import { defineConfig } from 'eslint/config'
 
 export default defineConfig([
-  // tmp/, static/, dist/ hold generated output and aren't linted.
+  // tmp/, static/, dist/ hold generated output; assets/ is served as-is.
   // node_modules and dotfiles are ignored by default in flat config.
   {
-    ignores: ['tmp/**', 'static/**', 'dist/**'],
+    ignores: ['tmp/**', 'static/**', 'dist/**', 'assets/**'],
   },
 
   {

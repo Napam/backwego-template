@@ -117,6 +117,11 @@ copy, so the repo keeps a single on-disk copy). The `task dev` watcher picks up
 asset edits (images, svgs, fonts, favicons) and re-runs the build
 automatically.
 
+`web/assets/` is excluded from prettier, eslint, and tsc, so prebuilt
+third-party scripts (a copied library, an analytics snippet) can be dropped in
+as-is without being reformatted or linted. If it's a normal package, prefer
+`bun add` and import it from `lib/` or a page bundle instead.
+
 Reference them in templ with the same helper the bundles use:
 
 ```templ

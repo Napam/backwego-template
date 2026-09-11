@@ -1,4 +1,5 @@
-# Generated or scratch output — not linted or formatted.
+# Not formatted: generated/scratch output and files served as-is.
 # (Prettier also respects .gitignore; this makes the contract explicit.)
 tmp/
 static/
+assets/
