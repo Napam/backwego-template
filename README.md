@@ -239,17 +239,6 @@ optimized it for my own tools and workflows:
 - My own home page is based on backwego-template:
   https://github.com/Napam/naphat. Page itself is hosted at https://naphat.no
 
-## Known issues
-
-- Running a one-off `templ generate` (e.g. from `task check`) while `task dev`
-  is running deletes the watch session's dev-mode `_templ.txt` files, and every
-  page then fails to render until the dev server restarts. The `gen.templ` task
-  works around it by pointing one-off generates at a scratch cache root
-  (`tmp/templ-oneoff-cache`), so their exit-time cleanup can't touch the watch
-  session's cache. Upstream fix pending:
-  [a-h/templ#1434](https://github.com/a-h/templ/pull/1434). This is the blocker
-  for tagging a named release of the template.
-
 ## License
 
 [MIT](LICENSE)

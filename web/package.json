@@ -5,25 +5,25 @@
   "private": true,
   "dependencies": {
     "lit": "^3.3.3",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/cli": "^4.3.3",
-    "@types/bun": "^1.4.0",
-    "eslint": "^10.9.0",
+    "@types/bun": "^1.4.4",
+    "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-better-tailwindcss": "^4.7.0",
+    "eslint-plugin-better-tailwindcss": "^4.10.0",
     "eslint-plugin-lit": "^2.3.1",
     "eslint-plugin-wc": "^3.1.0",
-    "globals": "^17.11.0",
-    "prettier": "^3.9.6",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.3",
     "ts-lit-plugin": "^2.0.2",
     "typescript": "^6.0.3",
     "typescript-7": "npm:typescript@^7.0.2",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.72.1"
   },
   "peerDependencies": {
     "typescript": "^6.0.3"

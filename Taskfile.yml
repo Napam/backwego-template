@@ -37,12 +37,6 @@ tasks:
 
   gen.templ:
     desc: Generate go code from templ templates
-    env:
-      # HACK until https://github.com/a-h/templ/pull/1434 is released: one-off
-      # generates never write dev-mode txt caches, only delete them at exit;
-      # pointing the root at a scratch dir keeps that deletion away from the
-      # cache of a concurrently running `task dev` watch session
-      TEMPL_DEV_MODE_ROOT: tmp/templ-oneoff-cache
     cmds:
       - go tool templ generate
 
