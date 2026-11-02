@@ -246,6 +246,9 @@ tasks:
     cmds:
       - go get -u tool # updates every module in the go.mod tool() directive
       - go get -u ./...
+      # templ v0.3.1100 does not build against newer a-h/parse; drop this pin
+      # once templ releases a compatible version.
+      - go get github.com/a-h/parse@v0.0.0-20250122154542-74294addb73e
       - go mod tidy
 
   update.tools:
@@ -258,6 +261,13 @@ tasks:
     dir: ./web
     cmds:
       - bun update --latest
+      # TypeScript 7 is the native compiler and has no JS API, which eslint and
+      # typescript-eslint need. Keep the tooling copy on 6.x; the typescript-7
+      # alias is what `task check.web` type-checks with.
+      - bun add --dev typescript@^6.0.3
+      # a clean tree: the intermediate 7.x install leaves a stale nested copy
+      # under ts-api-utils that bun install will not prune
+      - rm -rf node_modules
       - bun install
 
   clean:

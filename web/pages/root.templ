@@ -14,6 +14,7 @@ templ RootPage(users []sqlc.User, editID int64) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Backwego Template</title>
+			<link rel="icon" type="image/svg+xml" href={ backwegotemplate.StaticRootPath("static/assets/gopher-running-filled-white.svg") }/>
 			<link rel="stylesheet" id="tailwindcss" href={ backwegotemplate.StaticRootPath("static/tailwind.css") }/>
 			<script src={ backwegotemplate.StaticRootPath("static/bundle.js") }></script>
 			<script defer src={ backwegotemplate.StaticRootPath("static/page-files/pages/root.js") }></script>
