@@ -246,9 +246,6 @@ tasks:
     cmds:
       - go get -u tool # updates every module in the go.mod tool() directive
       - go get -u ./...
-      # templ v0.3.1100 does not build against newer a-h/parse; drop this pin
-      # once templ releases a compatible version.
-      - go get github.com/a-h/parse@v0.0.0-20250122154542-74294addb73e
       - go mod tidy
 
   update.tools:
